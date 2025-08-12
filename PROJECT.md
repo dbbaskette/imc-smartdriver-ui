@@ -42,11 +42,12 @@
     1.  **Backend (Spring Boot App)**:
         * A central `MetricsCollectorService` will be implemented as a `@Scheduled` bean. This service will run at a fixed interval (e.g., every 2 seconds).
         * On each run, the service will connect to:
-            * **RabbitMQ**: Using the RabbitMQ Management HTTP API or AMQP admin client to get the message count for the `imc-vehicle-events` queue.
+            * **RabbitMQ**: Using the RabbitMQ Management HTTP API or AMQP admin client to get the message count for the `vehicle-events` queue.
             * **HDFS**: Using the `hadoop-client` library to get file counts and total size for the target directory.
             * **Greenplum**: Using JDBC to execute queries that retrieve:
-                * The latest "Smart Driver Score" from the final results table.
-                * Row count from the "accident data" table (written to by the Spark Connector).
+                * The latest "Smart Driver Score" from `driver_safety_scores`.
+                * Row count from `accidents`.
+                * Row count from `vehicle_telemetry_data` (PXF external/foreign table).
         * The collected metrics will be aggregated into a single JSON object (a DTO like `PipelineMetrics.java`).
         * This DTO will be broadcast over a WebSocket endpoint (e.g., `/ws/metrics`) to all connected clients using Spring WebFlux's `Sinks.Many`.
 
@@ -141,7 +142,7 @@ The plan is organized into small, verifiable phases with clear acceptance criter
 - **Tasks**:
    - [ ] RabbitMQ: query Management API (or AMQP admin) for `vehicle-events` queue depth
   - [ ] HDFS: use `hadoop-client` to list target dir and aggregate counts/sizes
-  - [ ] Greenplum: JDBC query for latest driver score and table row counts
+   - [ ] Greenplum: JDBC query for latest driver score and table row counts (`accidents`, `vehicle_telemetry_data`)
   - [ ] Add `metrics.mode=mock|real` feature flag; mock remains default
   - [ ] Fail-safe error handling; log and send last-known/default values on errors
 - **Acceptance**: With `metrics.mode=real`, metrics reflect live systems; with `mock`, the app runs without external deps.
@@ -178,10 +179,11 @@ The plan is organized into small, verifiable phases with clear acceptance criter
   - `metrics.mode=mock` (mock|real)
   - RabbitMQ: `rabbit.host`, `rabbit.port`, `rabbit.user`, `rabbit.pass`, `rabbit.mgmt.port`, `rabbit.queue`
     - Defaults (dev): `rabbit.host=localhost`, `rabbit.port=5672`, `rabbit.mgmt.port=15672`, `rabbit.user=guest`, `rabbit.pass` via env var, `rabbit.queue=vehicle-events` (from imc-vehicle-events manifest)
+    - Cloud Foundry: RabbitMQ credentials/host provided via bound service in `application-cloud` profile.
   - HDFS: `hdfs.namenodeUri`, `hdfs.targetPath`
     - Defaults (dev/demo): `hdfs.namenodeUri=hdfs://big-data-005.kuhn-labs.com:8020`, `hdfs.targetPath=/insurance-megacorp/telemetry-data-v2` (per imc-vehicle-events/manifest and PXF external table)
-  - Greenplum: `gp.host`, `gp.port`, `gp.db`, `gp.user`, `gp.pass`, `gp.schema`, `gp.scoreTable`, `gp.eventTable`
-    - Defaults (demo): `gp.host=big-data-001.kuhn-labs.com`, `gp.port=5432`, `gp.db=insurance_megacorp`, `gp.user=gpadmin`, `gp.pass` via env var, `gp.schema=public`, `gp.scoreTable=driver_safety_scores`, `gp.eventTable=crash_reports_data`
+  - Greenplum: `gp.host`, `gp.port`, `gp.db`, `gp.user`, `gp.pass`, `gp.schema`, `gp.scoreTable`, `gp.eventTable`, `gp.telemetryTable`
+    - Defaults (demo): `gp.host=big-data-001.kuhn-labs.com`, `gp.port=5432`, `gp.db=insurance_megacorp`, `gp.user=gpadmin`, `gp.pass` via env var, `gp.schema=public`, `gp.scoreTable=driver_safety_scores`, `gp.eventTable=accidents`, `gp.telemetryTable=vehicle_telemetry_data`
   - WS: `ws.path=/ws/metrics`, CORS/origin settings
 
 ---
@@ -207,7 +209,7 @@ The plan is organized into small, verifiable phases with clear acceptance criter
 1. Confirm Spring Boot version and BOM preferences (or provide `versions.txt`).
 2. Confirm RabbitMQ management API availability/credentials (host defaults to `localhost:15672`).
 3. Confirm HDFS accessibility from the app network to `big-data-005.kuhn-labs.com:8020`.
-4. Confirm Greenplum DB name (`insurance_megacorp`) and table names (`driver_safety_scores`, `crash_reports_data`) or provide alternates.
+4. Confirm Greenplum DB name (`insurance_megacorp`) and table names (`driver_safety_scores`, `accidents`, `vehicle_telemetry_data`).
 5. Do you want this created as a new Git repository from the start? (Requested: yes)
 
 ---
