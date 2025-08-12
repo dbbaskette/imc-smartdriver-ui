@@ -1,0 +1,4 @@
+{
+  "prompts": [ "PROJECT.md", "prompt/_base/core_prompt.md", "prompt/spring_boot_service/spring_prompt.md", "prompt/app_web/web_app_prompt.md", "prompt/service_api/api_service_prompt.md" ],
+  "description": "smartdriverFlowUI prompt set"
+}

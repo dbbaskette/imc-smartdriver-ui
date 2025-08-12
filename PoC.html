@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IMC Data Flow Demo</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827;
+            color: #F9FAFB;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        .container {
+            width: 90%;
+            max-width: 1200px;
+            text-align: center;
+        }
+        h1 {
+            font-size: 2.5rem;
+            color: #E5E7EB;
+            margin-bottom: 40px;
+        }
+        svg {
+            width: 100%;
+            height: 400px;
+            border-radius: 12px;
+            background-color: #1F2937;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .component {
+            cursor: pointer;
+        }
+        .component-icon {
+            font-size: 48px;
+            fill: #9CA3AF;
+        }
+        .component-label {
+            font-size: 14px;
+            fill: #D1D5DB;
+            font-weight: 500;
+            text-anchor: middle;
+        }
+        .path {
+            stroke: #4B5563;
+            stroke-width: 2;
+            stroke-dasharray: 5 5;
+            fill: none;
+        }
+        .data-packet {
+            fill: #34D399; /* Emerald 400 */
+            stroke: #F9FAFB;
+            stroke-width: 1.5;
+            r: 7;
+            filter: drop-shadow(0 0 5px #34D399);
+        }
+        .queue-count {
+            font-size: 24px;
+            fill: #FBBF24; /* Amber 400 */
+            font-weight: 700;
+            text-anchor: middle;
+        }
+        .score-card {
+            background-color: #1F2937;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+            display: inline-block;
+            border: 1px solid #374151;
+        }
+        .score-title {
+            font-size: 1rem;
+            color: #9CA3AF;
+            margin: 0 0 10px 0;
+        }
+        .score-value {
+            font-size: 3rem;
+            fill: #34D399;
+            font-weight: 700;
+            margin: 0;
+            transition: fill 0.5s;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Smart Driver Analytics Pipeline</h1>
+        <svg id="pipeline"></svg>
+        <div id="score-card-container"></div>
+    </div>
+
+    <script>
+        // --- Configuration ---
+        const components = {
+            telemetry: { x: 100, y: 200, label: 'Vehicle Telemetry', icon: '📡' },
+            rabbit:    { x: 350, y: 200, label: 'RabbitMQ', icon: '🐇' },
+            processor: { x: 600, y: 200, label: 'IMC Processor', icon: '⚙️' },
+            hdfs:      { x: 850, y: 125, label: 'HDFS', icon: '🗄️' },
+            spark:     { x: 600, y: 350, label: 'Spark Connector', icon: '✨' },
+            greenplum: { x: 850, y: 275, label: 'Greenplum/MADlib', icon: '🐘' },
+            score:     { x: 1100, y: 200, label: 'Driver Score', icon: '🏆' }
+        };
+
+        const paths = [
+            { source: 'telemetry', target: 'rabbit' },
+            { source: 'rabbit', target: 'processor' },
+            { source: 'processor', target: 'hdfs' },
+            { source: 'spark', target: 'greenplum' },
+            { source: 'hdfs', target: 'greenplum' },
+            { source: 'greenplum', target: 'score' }
+        ];
+
+        // --- D3 Setup ---
+        const svg = d3.select("#pipeline");
+        const width = svg.node().getBoundingClientRect().width;
+        const height = svg.node().getBoundingClientRect().height;
+
+        // Adjust positions based on actual SVG width
+        Object.values(components).forEach(c => {
+            c.x = (c.x / 1200) * width;
+        });
+
+        // --- Render Components and Paths ---
+        
+        // Draw paths
+        paths.forEach(p => {
+            const source = components[p.source];
+            const target = components[p.target];
+            svg.append("path")
+                .attr("class", "path")
+                .attr("d", `M${source.x},${source.y} C${(source.x + target.x) / 2},${source.y} ${(source.x + target.x) / 2},${target.y} ${target.x},${target.y}`);
+        });
+
+        // Draw components
+        const componentGroups = svg.selectAll(".component")
+            .data(Object.entries(components))
+            .enter()
+            .append("g")
+            .attr("class", "component")
+            .attr("transform", d => `translate(${d[1].x}, ${d[1].y})`);
+
+        componentGroups.append("text")
+            .attr("class", "component-icon")
+            .attr("y", -25)
+            .attr("text-anchor", "middle")
+            .text(d => d[1].icon);
+
+        componentGroups.append("text")
+            .attr("class", "component-label")
+            .attr("y", 25)
+            .text(d => d[1].label);
+
+        // RabbitMQ Queue Count
+        const queueCount = svg.append("text")
+            .attr("class", "queue-count")
+            .attr("transform", `translate(${components.rabbit.x}, ${components.rabbit.y + 60})`)
+            .text("0");
+
+        // Driver Score Display
+        const scoreGroup = svg.append("g")
+            .attr("transform", `translate(${components.score.x}, ${components.score.y})`);
+        
+        const scoreValueText = scoreGroup.append("text")
+            .attr("class", "score-value")
+            .attr("y", 60)
+            .attr("text-anchor", "middle")
+            .text("N/A");
+
+
+        // --- Animation Logic ---
+        let currentQueueSize = 0;
+
+        function animatePacket(pathId) {
+            const pathDef = paths[pathId];
+            const pathElement = svg.selectAll(".path").nodes()[pathId];
+            const pathLength = pathElement.getTotalLength();
+            
+            const packet = svg.append("circle")
+                .attr("class", "data-packet")
+                .attr("r", 7)
+                .attr("transform", `translate(${components[pathDef.source].x}, ${components[pathDef.source].y})`);
+
+            packet.transition()
+                .duration(2500 + Math.random() * 1000)
+                .ease(d3.easeCubicInOut)
+                .attrTween("transform", function(d) {
+                    return function(t) {
+                        const p = pathElement.getPointAtLength(t * pathLength);
+                        return `translate(${p.x}, ${p.y})`;
+                    }
+                })
+                .on("end", function() {
+                    d3.select(this).remove();
+                    
+                    // Logic after packet reaches destination
+                    if (pathDef.target === 'rabbit') {
+                        currentQueueSize++;
+                    }
+                    if (pathDef.source === 'rabbit') {
+                        currentQueueSize = Math.max(0, currentQueueSize - 1);
+                    }
+                    if (pathDef.target === 'score') {
+                         updateDriverScore();
+                    }
+                })
+                .remove();
+        }
+        
+        function updateDriverScore() {
+            const newScore = Math.floor(75 + Math.random() * 25);
+            scoreValueText.text(newScore);
+            
+            let color = "#34D399"; // Green
+            if (newScore < 85) color = "#FBBF24"; // Yellow
+            if (newScore < 80) color = "#F87171"; // Red
+            
+            scoreValueText.transition().duration(500).style("fill", color);
+        }
+
+        // --- Simulation Loop ---
+        // Simulate data coming from telemetry
+        setInterval(() => animatePacket(0), 1000);
+
+        // Simulate processing from RabbitMQ
+        setInterval(() => {
+            if (currentQueueSize > 0) {
+                animatePacket(1);
+            }
+        }, 500);
+        
+        // Simulate processing to HDFS
+        setInterval(() => animatePacket(2), 700);
+        
+        // Simulate Spark and HDFS feeding Greenplum
+        setInterval(() => animatePacket(3), 3000);
+        setInterval(() => animatePacket(4), 2500);
+        
+        // Simulate Greenplum calculating a score
+        setInterval(() => {
+            // Check if there's activity feeding into greenplum
+            if (Math.random() > 0.3) {
+                 animatePacket(5);
+            }
+        }, 4000);
+
+
+        // Update queue counter text
+        setInterval(() => {
+            queueCount.text(currentQueueSize);
+        }, 100);
+
+    </script>
+</body>
+</html>
