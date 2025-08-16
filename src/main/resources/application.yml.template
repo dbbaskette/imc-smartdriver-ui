@@ -1,0 +1,71 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: imc-smartdriver-ui
+  profiles:
+    active: local
+
+logging:
+  level:
+    com.insurancemegacorp: DEBUG
+    org.springframework.web: INFO
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# Metrics collection configuration
+metrics:
+  mode: mock  # mock|real
+  collection:
+    interval: 2000  # milliseconds
+
+# WebSocket configuration  
+websocket:
+  path: /ws/metrics
+  allowed-origins: "*"
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+
+# Local development settings
+rabbitmq:
+  host: ${RABBITMQ_HOST:localhost}
+  port: ${RABBITMQ_PORT:5672}
+  username: ${RABBITMQ_USERNAME:guest}
+  password: ${RABBITMQ_PASSWORD:guest}
+  management:
+    port: ${RABBITMQ_MGMT_PORT:15672}
+  queue:
+    name: ${RABBITMQ_QUEUE_NAME:vehicle-events}
+  display:
+    # Comma-separated list of queue names to show in the dashboard grid (empty shows all queues)
+    queues: ${RABBITMQ_DISPLAY_QUEUES:}
+
+hdfs:
+  namenode-uri: ${HDFS_NAMENODE_URI:hdfs://big-data-005.kuhn-labs.com:8020}
+  target-path: ${HDFS_TARGET_PATH:/insurance-megacorp/telemetry-data-v2}
+
+greenplum:
+  host: ${GP_HOST:big-data-001.kuhn-labs.com}
+  port: ${GP_PORT:5432}
+  database: ${GP_DATABASE:insurance_megacorp}
+  username: ${GP_USERNAME:gpadmin}
+  password: ${GP_PASSWORD:}
+  schema: ${GP_SCHEMA:public}
+  tables:
+    score: ${GP_SCORE_TABLE:driver_safety_scores}
+    accidents: ${GP_ACCIDENTS_TABLE:accidents}
+    telemetry: ${GP_TELEMETRY_TABLE:vehicle_telemetry_data}

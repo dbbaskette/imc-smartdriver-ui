@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IMC Data Flow Demo</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827;
+            color: #F9FAFB;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        .main-container {
+            width: 100%;
+            max-width: 1400px;
+            text-align: center;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        .pipeline-container {
+            width: 66.66%;
+            height: 540px;
+            background-color: #1F2937;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #374151;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            box-sizing: border-box;
+        }
+        .info-container {
+            width: 33.33%;
+            height: 540px;
+            background-color: #1F2937;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #374151;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            box-sizing: border-box;
+        }
+        .info-container h3 {
+            color: #E5E7EB;
+            margin: 0 0 15px 0;
+            font-size: 1.2rem;
+        }
+        .info-content {
+            color: #D1D5DB;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        h1 {
+            font-size: 2.5rem;
+            color: #E5E7EB;
+            margin-bottom: 40px;
+        }
+        svg {
+            width: 100%;
+            height: 500px;
+            border-radius: 12px;
+            background-color: #1F2937;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .component {
+            cursor: pointer;
+        }
+        .component-icon {
+            font-size: 48px;
+            fill: #9CA3AF;
+        }
+        .component-svg-icon {
+            filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.3));
+        }
+        .component-label {
+            font-size: 14px;
+            fill: #D1D5DB;
+            font-weight: 500;
+            text-anchor: middle;
+        }
+        .path {
+            stroke: #4B5563;
+            stroke-width: 2;
+            stroke-dasharray: 5 5;
+            fill: none;
+        }
+        .data-packet {
+            fill: #34D399; /* Emerald 400 */
+            stroke: #F9FAFB;
+            stroke-width: 1.5;
+            r: 7;
+            filter: drop-shadow(0 0 5px #34D399);
+        }
+        .queue-count {
+            font-size: 24px;
+            fill: #FBBF24; /* Amber 400 */
+            font-weight: 700;
+            text-anchor: middle;
+        }
+        .score-card {
+            background-color: #1F2937;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+            display: inline-block;
+            border: 1px solid #374151;
+        }
+        .score-title {
+            font-size: 1rem;
+            color: #9CA3AF;
+            margin: 0 0 10px 0;
+        }
+        .score-value {
+            font-size: 3rem;
+            fill: #34D399;
+            font-weight: 700;
+            margin: 0;
+            transition: fill 0.5s;
+        }
+        .data-grid {
+            fill: none;
+            stroke: #374151;
+            stroke-width: 1;
+        }
+        .data-grid-bg {
+            fill: #1F2937;
+            opacity: 0.9;
+        }
+        .data-grid-text {
+            font-size: 8px;
+            fill: #D1D5DB;
+            text-anchor: middle;
+            font-family: monospace;
+        }
+        .data-grid-value {
+            font-size: 9px;
+            fill: #34D399;
+            text-anchor: middle;
+            font-weight: 700;
+            font-family: monospace;
+        }
+        .component-tooltip {
+            position: absolute;
+            background-color: #111827;
+            border: 1px solid #374151;
+            border-radius: 6px;
+            padding: 8px;
+            font-size: 12px;
+            color: #E5E7EB;
+            pointer-events: none;
+            z-index: 1000;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+        <h1>IMC Vehicle Events Pipeline</h1>
+        
+        <div class="container">
+            <div class="pipeline-container">
+                <svg id="pipeline"></svg>
+                
+                <!-- Tooltip for component details -->
+                <div id="tooltip" class="component-tooltip" style="display: none;"></div>
+                
+                <div id="score-card-container"></div>
+            </div>
+            
+            <div class="info-container">
+                <h3>Pipeline Metrics</h3>
+                <div class="info-content">
+                    <p><strong>Status:</strong> Active</p>
+                    <p><strong>Uptime:</strong> 2h 34m</p>
+                    <p><strong>Total Processed:</strong> 1.2M events</p>
+                    <p><strong>Accidents Detected:</strong> 23</p>
+                    <p><strong>HDFS Files:</strong> 892</p>
+                    <p><strong>Database Rows:</strong> 45k</p>
+                    
+                    <h4 style="color: #E5E7EB; margin: 20px 0 10px 0; font-size: 1rem;">Component Health</h4>
+                    <div style="margin: 5px 0;">🟢 Telemetry Generator</div>
+                    <div style="margin: 5px 0;">🟢 RabbitMQ Exchange</div>
+                    <div style="margin: 5px 0;">🟢 HDFS Sink</div>
+                    <div style="margin: 5px 0;">🟢 Hadoop HDFS</div>
+                    <div style="margin: 5px 0;">🟢 Telemetry Processor</div>
+                    <div style="margin: 5px 0;">🟢 JDBC Processor</div>
+                    <div style="margin: 5px 0;">🟢 Vehicle Events Queue</div>
+                    <div style="margin: 5px 0;">🟢 Greenplum Database</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Configuration ---
+        const components = {
+            generator:  { x: 100, y: 250, label: 'Telemetry Generator', icon: '🚗', description: 'Vehicle data source' },
+            exchange:   { x: 350, y: 250, label: 'telematics_exchange', svg: '/assets/RabbitMQ.svg', description: 'RabbitMQ fanout exchange' },
+            hdfs:       { x: 600, y: 80, label: 'HDFS Sink', icon: '🗄️', description: 'All data → Parquet' },
+            hadoop:     { x: 850, y: 80, label: 'Hadoop HDFS', svg: '/assets/hadoop.svg', description: 'File storage' },
+            processor:  { x: 600, y: 350, label: 'Telemetry Processor', icon: '⚙️', description: 'Accident detection' },
+            database:   { x: 850, y: 250, label: 'JDBC Processor', icon: '🗃️', description: 'Database processor' },
+            events:     { x: 850, y: 400, label: 'vehicle_events', svg: '/assets/RabbitMQ.svg', description: 'RabbitMQ queue' },
+            greenplum:  { x: 1100, y: 250, label: 'Greenplum', svg: '/assets/tanzu.png', description: 'Tanzu Greenplum Database' }
+        };
+
+        const paths = [
+            { source: 'generator', target: 'exchange' },
+            { source: 'exchange', target: 'hdfs' },
+            { source: 'hdfs', target: 'hadoop' },
+            { source: 'exchange', target: 'processor' },
+            { source: 'processor', target: 'database' },
+            { source: 'processor', target: 'events' },
+            { source: 'hadoop', target: 'greenplum' },
+            { source: 'database', target: 'greenplum' }
+        ];
+
+        // --- D3 Setup ---
+        const svg = d3.select("#pipeline");
+        const width = svg.node().getBoundingClientRect().width;
+        const height = svg.node().getBoundingClientRect().height;
+
+        // Adjust positions based on actual SVG width
+        Object.values(components).forEach(c => {
+            c.x = (c.x / 1200) * width;
+        });
+
+        // --- Render Components and Paths ---
+        
+        // Draw paths
+        paths.forEach(p => {
+            const source = components[p.source];
+            const target = components[p.target];
+            svg.append("path")
+                .attr("class", "path")
+                .attr("d", `M${source.x},${source.y} C${(source.x + target.x) / 2},${source.y} ${(source.x + target.x) / 2},${target.y} ${target.x},${target.y}`);
+        });
+
+        // Draw components
+        const componentGroups = svg.selectAll(".component")
+            .data(Object.entries(components))
+            .enter()
+            .append("g")
+            .attr("class", "component")
+            .attr("transform", d => `translate(${d[1].x}, ${d[1].y})`);
+
+        // Add component icons - SVG for components that have them, emoji for others
+        componentGroups.each(function(d) {
+            const group = d3.select(this);
+            const data = d[1];
+            
+            if (data.svg) {
+                // Use SVG logo
+                group.append("image")
+                    .attr("href", data.svg)
+                    .attr("x", -24)
+                    .attr("y", -49)
+                    .attr("width", 48)
+                    .attr("height", 48)
+                    .attr("class", "component-svg-icon");
+            } else {
+                // Use emoji fallback
+                group.append("text")
+                    .attr("class", "component-icon")
+                    .attr("y", -25)
+                    .attr("text-anchor", "middle")
+                    .text(data.icon);
+            }
+        });
+
+        componentGroups.append("text")
+            .attr("class", "component-label")
+            .attr("y", 25)
+            .text(d => d[1].label);
+
+        // Add 2x2 data grids under each component
+        componentGroups.each(function(d, i) {
+            const group = d3.select(this);
+            const gridData = generateMockData(d[0]); // Generate mock data based on component type
+            
+            // Grid background
+            group.append("rect")
+                .attr("class", "data-grid-bg")
+                .attr("x", -30)
+                .attr("y", 35)
+                .attr("width", 60)
+                .attr("height", 40)
+                .attr("rx", 4);
+            
+            // Grid border
+            group.append("rect")
+                .attr("class", "data-grid")
+                .attr("x", -30)
+                .attr("y", 35)
+                .attr("width", 60)
+                .attr("height", 40)
+                .attr("rx", 4);
+            
+            // Grid cells (2x2)
+            const cellWidth = 30;
+            const cellHeight = 20;
+            
+            gridData.forEach((row, rowIndex) => {
+                row.forEach((cell, colIndex) => {
+                    const x = -30 + (colIndex * cellWidth);
+                    const y = 35 + (rowIndex * cellHeight);
+                    
+                    // Cell separator lines
+                    if (colIndex > 0) {
+                        group.append("line")
+                            .attr("class", "data-grid")
+                            .attr("x1", x)
+                            .attr("y1", 35)
+                            .attr("x2", x)
+                            .attr("y2", 75);
+                    }
+                    if (rowIndex > 0) {
+                        group.append("line")
+                            .attr("class", "data-grid")
+                            .attr("x1", -30)
+                            .attr("y1", y)
+                            .attr("x2", 30)
+                            .attr("y2", y);
+                    }
+                    
+                    // Cell label
+                    group.append("text")
+                        .attr("class", "data-grid-text")
+                        .attr("x", x + cellWidth/2)
+                        .attr("y", y + 8)
+                        .text(cell.label);
+                    
+                    // Cell value
+                    group.append("text")
+                        .attr("class", "data-grid-value")
+                        .attr("x", x + cellWidth/2)
+                        .attr("y", y + 16)
+                        .text(cell.value);
+                });
+            });
+        });
+
+        // Add hover interactions
+        componentGroups
+            .on("mouseover", function(event, d) {
+                const tooltip = document.getElementById('tooltip');
+                tooltip.innerHTML = `<strong>${d[1].label}</strong><br/>${d[1].description}`;
+                tooltip.style.display = 'block';
+                tooltip.style.left = (event.pageX + 10) + 'px';
+                tooltip.style.top = (event.pageY - 10) + 'px';
+            })
+            .on("mousemove", function(event) {
+                const tooltip = document.getElementById('tooltip');
+                tooltip.style.left = (event.pageX + 10) + 'px';
+                tooltip.style.top = (event.pageY - 10) + 'px';
+            })
+            .on("mouseout", function() {
+                document.getElementById('tooltip').style.display = 'none';
+            })
+            .on("click", function(event, d) {
+                alert(`Click details for ${d[1].label}\n\n${d[1].description}\n\n[Placeholder for detailed view]`);
+            });
+
+        // Remove old queue count and score displays for cleaner vertical layout
+
+
+        // --- Mock Data Generation ---
+        function generateMockData(componentType) {
+            const mockData = {
+                generator: [
+                    [{label: 'Rate', value: '2.1/s'}, {label: 'Total', value: '1.2k'}],
+                    [{label: 'Speed', value: '65mph'}, {label: 'G-Force', value: '1.2g'}]
+                ],
+                exchange: [
+                    [{label: 'In', value: '127'}, {label: 'Out', value: '254'}],
+                    [{label: 'Queues', value: '3'}, {label: 'Rate', value: '4.2/s'}]
+                ],
+                hdfs: [
+                    [{label: 'Proc', value: '1.2k'}, {label: 'Files', value: '892'}],
+                    [{label: 'Writers', value: '3'}, {label: 'Batch', value: '1000'}]
+                ],
+                hadoop: [
+                    [{label: 'Files', value: '892'}, {label: 'Size', value: '2.1GB'}],
+                    [{label: 'Blocks', value: '1.8k'}, {label: 'Nodes', value: '3'}]
+                ],
+                processor: [
+                    [{label: 'Proc', value: '1.2k'}, {label: 'Events', value: '23'}],
+                    [{label: 'Threshold', value: '2.5g'}, {label: 'Rate', value: '95%'}]
+                ],
+                events: [
+                    [{label: 'Queue', value: '0'}, {label: 'Total', value: '156'}],
+                    [{label: 'Accidents', value: '23'}, {label: 'Rate', value: '0.3/s'}]
+                ],
+                database: [
+                    [{label: 'Proc', value: '1.2k'}, {label: 'Rows', value: '45k'}],
+                    [{label: 'Batch', value: '100'}, {label: 'Rate', value: '98%'}]
+                ],
+                greenplum: [
+                    [{label: 'Tables', value: '12'}, {label: 'Rows', value: '2.1M'}],
+                    [{label: 'Size', value: '450MB'}, {label: 'Nodes', value: '3'}]
+                ]
+            };
+            return mockData[componentType] || [
+                [{label: 'Val1', value: '123'}, {label: 'Val2', value: '456'}],
+                [{label: 'Val3', value: '789'}, {label: 'Val4', value: '0'}]
+            ];
+        }
+
+        // --- Animation Logic ---
+        let currentQueueSize = 0;
+        let currentMetrics = null;
+        let exchangeMetrics = null;
+
+        function animatePacket(pathId) {
+            const pathDef = paths[pathId];
+            const pathElement = svg.selectAll(".path").nodes()[pathId];
+            const pathLength = pathElement.getTotalLength();
+            
+            const packet = svg.append("circle")
+                .attr("class", "data-packet")
+                .attr("r", 7)
+                .attr("transform", `translate(${components[pathDef.source].x}, ${components[pathDef.source].y})`);
+
+            packet.transition()
+                .duration(2500 + Math.random() * 1000)
+                .ease(d3.easeCubicInOut)
+                .attrTween("transform", function(d) {
+                    return function(t) {
+                        const p = pathElement.getPointAtLength(t * pathLength);
+                        return `translate(${p.x}, ${p.y})`;
+                    }
+                })
+                .on("end", function() {
+                    d3.select(this).remove();
+                    
+                    // Logic after packet reaches destination
+                    if (pathDef.target === 'rabbit') {
+                        currentQueueSize++;
+                    }
+                    if (pathDef.source === 'rabbit') {
+                        currentQueueSize = Math.max(0, currentQueueSize - 1);
+                    }
+                    if (pathDef.target === 'score') {
+                         updateDriverScore();
+                    }
+                })
+                .remove();
+        }
+        
+        function updateDriverScore(score = null) {
+            const newScore = score !== null ? Math.round(score) : Math.floor(75 + Math.random() * 25);
+            scoreValueText.text(newScore);
+            
+            let color = "#34D399"; // Green
+            if (newScore < 85) color = "#FBBF24"; // Yellow
+            if (newScore < 80) color = "#F87171"; // Red
+            
+            scoreValueText.transition().duration(500).style("fill", color);
+        }
+
+        // Fetch real metrics from API
+        async function fetchMetrics() {
+            try {
+                const response = await fetch('/api/metrics');
+                const metrics = await response.json();
+                currentMetrics = metrics;
+                
+                // Update queue size with real data
+                if (metrics.queue_depth >= 0) {
+                    currentQueueSize = metrics.queue_depth;
+                }
+                
+                // Update driver score with real data
+                if (metrics.latest_score > 0) {
+                    updateDriverScore(metrics.latest_score);
+                }
+                
+                console.log('Metrics updated:', metrics);
+                return metrics;
+            } catch (error) {
+                console.error('Failed to fetch metrics:', error);
+                return null;
+            }
+        }
+
+        // Queue display removed for cleaner UI
+
+        // Fetch exchange throughput data
+        async function fetchExchangeThroughput() {
+            try {
+                const response = await fetch('/api/rabbitmq/exchange/throughput');
+                const data = await response.json();
+                exchangeMetrics = data;
+                
+                // Update exchange throughput display
+                document.getElementById('exchange-in').textContent = data.total_publish_in || 0;
+                document.getElementById('exchange-out').textContent = data.total_publish_out || 0;
+                
+                // Update telemetry display with rate and total from exchange data
+                document.getElementById('telemetry-rate').textContent = (data.current_rate_in || 0).toFixed(1) + '/s';
+                document.getElementById('telemetry-total').textContent = data.total_publish_in || 0;
+                
+                console.log('Exchange throughput updated:', data);
+                return data;
+            } catch (error) {
+                console.error('Failed to fetch exchange throughput:', error);
+                return null;
+            }
+        }
+
+        // Data grids are now integrated directly into the SVG components
+
+        // --- Enhanced Animation with Flow Splitting ---
+        let exchangeSplitToggle = false;
+        let processorSplitToggle = false;
+
+        // Path 0: generator → exchange
+        setInterval(() => animatePacket(0), 1000);
+
+        // Exchange splits to HDFS and Processor alternately
+        setInterval(() => {
+            if (exchangeSplitToggle) {
+                animatePacket(1); // exchange → hdfs
+            } else {
+                animatePacket(3); // exchange → processor
+            }
+            exchangeSplitToggle = !exchangeSplitToggle;
+        }, 900);
+        
+        // Path 2: hdfs → hadoop (file writes)
+        setInterval(() => animatePacket(2), 1800);
+        
+        // Processor splits to Database and Events alternately
+        setInterval(() => {
+            if (processorSplitToggle) {
+                animatePacket(4); // processor → database
+            } else {
+                animatePacket(5); // processor → vehicle_events
+            }
+            processorSplitToggle = !processorSplitToggle;
+        }, 2400);
+
+        // Path 6: hadoop → greenplum (analytics)
+        setInterval(() => animatePacket(6), 4000);
+        
+        // Path 7: database → greenplum (processed data)
+        setInterval(() => animatePacket(7), 3500);
+
+        // Fetch metrics from API every 3 seconds
+        setInterval(fetchMetrics, 3000);
+        
+        // Fetch exchange throughput every 2 seconds
+        setInterval(fetchExchangeThroughput, 2000);
+        
+        // Initial metrics fetch
+        fetchMetrics();
+        fetchExchangeThroughput();
+
+    </script>
+</body>
+</html>

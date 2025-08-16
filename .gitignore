@@ -2,3 +2,29 @@
 combined_prompt.md
 CLAUDE.md
 .gemini.md
+
+# Configuration files (templates are tracked, actual files are ignored)
+src/main/resources/application.yml
+src/main/resources/application-cloud.yml
+
+# Maven
+target/
+.mvn/wrapper/maven-wrapper.jar
+.mvn/wrapper/maven-wrapper.properties
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+release.sh
+.release-exec
