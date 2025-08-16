@@ -149,6 +149,21 @@
             font-weight: 700;
             font-family: monospace;
         }
+        .health-indicator {
+            r: 6;
+            stroke: #1F2937;
+            stroke-width: 2;
+            filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.3));
+        }
+        .health-indicator.healthy {
+            fill: #10B981; /* Green */
+        }
+        .health-indicator.unhealthy {
+            fill: #EF4444; /* Red */
+        }
+        .health-indicator.unknown {
+            fill: #6B7280; /* Gray */
+        }
         .component-tooltip {
             position: absolute;
             background-color: #111827;
@@ -189,12 +204,12 @@
                     <p><strong>Database Rows:</strong> 45k</p>
                     
                     <h4 style="color: #E5E7EB; margin: 20px 0 10px 0; font-size: 1rem;">Component Health</h4>
-                    <div style="margin: 5px 0;">🟢 Telemetry Generator</div>
+                    <div style="margin: 5px 0;"><span id="health-status-generator">🔴</span> Telemetry Generator</div>
                     <div style="margin: 5px 0;">🟢 RabbitMQ Exchange</div>
-                    <div style="margin: 5px 0;">🟢 HDFS Sink</div>
+                    <div style="margin: 5px 0;"><span id="health-status-hdfs">🔴</span> HDFS Sink</div>
                     <div style="margin: 5px 0;">🟢 Hadoop HDFS</div>
-                    <div style="margin: 5px 0;">🟢 Telemetry Processor</div>
-                    <div style="margin: 5px 0;">🟢 JDBC Processor</div>
+                    <div style="margin: 5px 0;"><span id="health-status-processor">🔴</span> Events Processor</div>
+                    <div style="margin: 5px 0;"><span id="health-status-jdbc">🔴</span> JDBC Processor</div>
                     <div style="margin: 5px 0;">🟢 Vehicle Events Queue</div>
                     <div style="margin: 5px 0;">🟢 Greenplum Database</div>
                 </div>
@@ -209,7 +224,7 @@
             exchange:   { x: 350, y: 250, label: 'telematics_exchange', svg: '/assets/RabbitMQ.svg', description: 'RabbitMQ fanout exchange' },
             hdfs:       { x: 600, y: 80, label: 'HDFS Sink', icon: '🗄️', description: 'All data → Parquet' },
             hadoop:     { x: 850, y: 80, label: 'Hadoop HDFS', svg: '/assets/hadoop.svg', description: 'File storage' },
-            processor:  { x: 600, y: 350, label: 'Telemetry Processor', icon: '⚙️', description: 'Accident detection' },
+            processor:  { x: 600, y: 350, label: 'Events Processor', icon: '⚙️', description: 'Accident detection' },
             database:   { x: 850, y: 250, label: 'JDBC Processor', icon: '🗃️', description: 'Database processor' },
             events:     { x: 850, y: 400, label: 'vehicle_events', svg: '/assets/RabbitMQ.svg', description: 'RabbitMQ queue' },
             greenplum:  { x: 1100, y: 250, label: 'Greenplum', svg: '/assets/tanzu.png', description: 'Tanzu Greenplum Database' }
@@ -283,6 +298,20 @@
             .attr("class", "component-label")
             .attr("y", 25)
             .text(d => d[1].label);
+
+        // Add health indicators for components with actuator endpoints
+        const healthComponents = ['generator', 'processor', 'hdfs', 'database']; // database maps to jdbc
+        componentGroups.each(function(d) {
+            const componentId = d[0];
+            if (healthComponents.includes(componentId)) {
+                const group = d3.select(this);
+                group.append("circle")
+                    .attr("class", "health-indicator unknown")
+                    .attr("id", `health-${componentId}`)
+                    .attr("cx", 0)
+                    .attr("cy", -70); // Position above the icon
+            }
+        });
 
         // Add 2x2 data grids under each component
         componentGroups.each(function(d, i) {
@@ -421,9 +450,25 @@
         let currentQueueSize = 0;
         let currentMetrics = null;
         let exchangeMetrics = null;
+        let componentHealth = {
+            generator: true,
+            processor: true, 
+            hdfs: true,
+            jdbc: true
+        };
 
         function animatePacket(pathId) {
             const pathDef = paths[pathId];
+            
+            // Check if both source and target components are healthy
+            const sourceHealthy = isComponentHealthy(pathDef.source);
+            const targetHealthy = isComponentHealthy(pathDef.target);
+            
+            if (!sourceHealthy || !targetHealthy) {
+                // Skip animation if either component is unhealthy
+                return;
+            }
+            
             const pathElement = svg.selectAll(".path").nodes()[pathId];
             const pathLength = pathElement.getTotalLength();
             
@@ -519,6 +564,62 @@
             }
         }
 
+        // Fetch component health status
+        async function fetchComponentHealth() {
+            try {
+                const response = await fetch('/api/components/health');
+                const data = await response.json();
+                
+                if (data.component_health) {
+                    componentHealth = data.component_health;
+                    updateHealthIndicators();
+                    console.log('Component health updated:', componentHealth);
+                }
+                
+                return data;
+            } catch (error) {
+                console.error('Failed to fetch component health:', error);
+                return null;
+            }
+        }
+
+        // Update visual health indicators
+        function updateHealthIndicators() {
+            Object.keys(componentHealth).forEach(component => {
+                // Map jdbc health to database component in UI
+                const componentId = component === 'jdbc' ? 'database' : component;
+                const healthCircle = document.getElementById(`health-${componentId}`);
+                if (healthCircle) {
+                    const isHealthy = componentHealth[component];
+                    healthCircle.className.baseVal = `health-indicator ${isHealthy ? 'healthy' : 'unhealthy'}`;
+                }
+                
+                // Update info panel status
+                const statusElement = document.getElementById(`health-status-${component}`);
+                if (statusElement) {
+                    statusElement.textContent = componentHealth[component] ? '🟢' : '🔴';
+                }
+            });
+        }
+
+        // Check if a component is healthy for animation purposes
+        function isComponentHealthy(componentName) {
+            // Map component names to health tracking names
+            const healthMap = {
+                'generator': 'generator',
+                'processor': 'processor', 
+                'hdfs': 'hdfs',
+                'database': 'jdbc',  // Map database component to jdbc health
+                'exchange': true,    // RabbitMQ - always healthy for now
+                'hadoop': true,      // Hadoop - always healthy for now  
+                'events': true,      // RabbitMQ queue - always healthy for now
+                'greenplum': true    // Greenplum - always healthy for now
+            };
+            
+            const healthStatus = healthMap[componentName];
+            return typeof healthStatus === 'boolean' ? healthStatus : componentHealth[healthStatus];
+        }
+
         // Data grids are now integrated directly into the SVG components
 
         // --- Enhanced Animation with Flow Splitting ---
@@ -563,9 +664,13 @@
         // Fetch exchange throughput every 2 seconds
         setInterval(fetchExchangeThroughput, 2000);
         
+        // Fetch component health every 8 seconds (matches backend schedule)
+        setInterval(fetchComponentHealth, 8000);
+        
         // Initial metrics fetch
         fetchMetrics();
         fetchExchangeThroughput();
+        fetchComponentHealth();
 
     </script>
 </body>

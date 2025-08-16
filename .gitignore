@@ -28,3 +28,5 @@ logs/
 *.log
 release.sh
 .release-exec
+*.yml
+*.properties
