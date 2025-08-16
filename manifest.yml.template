@@ -1,0 +1,25 @@
+applications:
+  - name: imc-smartdriver-ui
+    memory: 1G
+    instances: 1
+    path: ./target/imc-smartdriver-ui-0.1.0.jar
+    buildpacks:
+    - java_buildpack_offline
+    services:
+      - YOUR_RABBITMQ_SERVICE_NAME  # RabbitMQ service (for HTTP API credentials only)
+      - YOUR_SERVICE_REGISTRY_NAME  # Spring Cloud Service Registry
+    routes:
+      - route: imc-smartdriver-ui.apps.tas-ndc.kuhn-labs.com
+    env:
+      JBP_CONFIG_OPEN_JDK_JRE: '{ jre: { version: 21.+ } }'
+      SPRING_PROFILES_ACTIVE: cloud
+      # Service Discovery Configuration - most settings auto-configured via service binding
+      # Health monitoring configuration
+      COMPONENT_HEALTH_DISCOVERY_ENABLED: true
+      # Map UI components to actual Eureka service names
+      # Update these service names to match your actual CF app names
+      COMPONENT_HEALTH_SERVICE_MAPPINGS: "generator:imc-telematics-gen,processor:imc-telemetry-processor,hdfs:imc-hdfs-sink,jdbc:vehicle-events-sink"
+      # RabbitMQ Management API access provided via service binding (HTTP only, no AMQP connection)
+      # Logging
+      LOGGING_LEVEL_COM_INSURANCEMEGACORP_MONITORING: DEBUG
+      LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_CLOUD_NETFLIX_EUREKA: DEBUG

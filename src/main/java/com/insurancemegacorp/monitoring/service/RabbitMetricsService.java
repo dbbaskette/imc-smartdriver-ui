@@ -27,11 +27,11 @@ public class RabbitMetricsService {
     public RabbitMetricsService(
             RestTemplate restTemplate,
             @Value("${rabbitmq.management.api-url:}") String managementApiUrl,
-            @Value("${rabbitmq.host}") String host,
+            @Value("${spring.rabbitmq.host:${rabbitmq.host:localhost}}") String host,
             @Value("${rabbitmq.management.port:15672}") int managementPort,
-            @Value("${rabbitmq.username}") String username,
-            @Value("${rabbitmq.password}") String password,
-            @Value("${rabbitmq.queue.name}") String queueName,
+            @Value("${spring.rabbitmq.username:${rabbitmq.username:guest}}") String username,
+            @Value("${spring.rabbitmq.password:${rabbitmq.password:guest}}") String password,
+            @Value("${rabbitmq.queue.name:telematics_exchange.crash-detection-group}") String queueName,
             @Value("${rabbitmq.display.queues:}") String displayQueuesStr) {
         
         this.restTemplate = restTemplate;

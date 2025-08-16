@@ -1,11 +1,5 @@
 package com.insurancemegacorp.monitoring.config;
 
-import org.springframework.amqp.core.AmqpAdmin;
-import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
-import org.springframework.amqp.rabbit.connection.ConnectionFactory;
-import org.springframework.amqp.rabbit.core.RabbitAdmin;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestTemplate;
@@ -13,40 +7,8 @@ import org.springframework.web.client.RestTemplate;
 @Configuration
 public class RabbitConfig {
 
-    @Value("${rabbitmq.host}")
-    private String host;
-
-    @Value("${rabbitmq.port}")
-    private int port;
-
-    @Value("${rabbitmq.username}")
-    private String username;
-
-    @Value("${rabbitmq.password}")
-    private String password;
-
-    @Value("${rabbitmq.management.port:15672}")
-    private int managementPort;
-
-    @Bean
-    public ConnectionFactory connectionFactory() {
-        CachingConnectionFactory factory = new CachingConnectionFactory();
-        factory.setHost(host);
-        factory.setPort(port);
-        factory.setUsername(username);
-        factory.setPassword(password);
-        return factory;
-    }
-
-    @Bean
-    public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory) {
-        return new RabbitTemplate(connectionFactory);
-    }
-
-    @Bean
-    public AmqpAdmin amqpAdmin(ConnectionFactory connectionFactory) {
-        return new RabbitAdmin(connectionFactory);
-    }
+    // This monitoring UI only needs HTTP access to RabbitMQ Management API
+    // No direct AMQP connection required - just REST API calls for metrics
 
     @Bean
     public RestTemplate restTemplate() throws Exception {
