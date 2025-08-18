@@ -173,6 +173,24 @@ public class MetricsController {
         return ResponseEntity.ok(health);
     }
     
+    @GetMapping("/rabbitmq/management/url")
+    public ResponseEntity<Map<String, Object>> getRabbitMQManagementUrl() {
+        Map<String, Object> urlInfo = telemematicsExchangeMetricsService.getManagementDashboardUrl();
+        return ResponseEntity.ok(urlInfo);
+    }
+    
+    @GetMapping("/vehicle-events/queue/metrics")
+    public ResponseEntity<Map<String, Object>> getVehicleEventsQueueMetrics() {
+        Map<String, Object> queueMetrics = telemematicsExchangeMetricsService.getVehicleEventsQueueMetrics();
+        return ResponseEntity.ok(queueMetrics);
+    }
+    
+    @GetMapping("/events-processor/metrics")
+    public ResponseEntity<Map<String, Object>> getEventsProcessorMetrics() {
+        Map<String, Object> processorMetrics = telemematicsExchangeMetricsService.getEventsProcessorMetrics();
+        return ResponseEntity.ok(processorMetrics);
+    }
+    
     @GetMapping("/debug/telemetry/raw")
     public ResponseEntity<String> getDebugTelemetryRaw() {
         try {

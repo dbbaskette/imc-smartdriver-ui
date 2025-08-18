@@ -135,6 +135,181 @@ public class TelemematicsExchangeMetricsService {
         
         return health;
     }
+    
+    /**
+     * Get RabbitMQ management dashboard URL
+     */
+    public Map<String, Object> getManagementDashboardUrl() {
+        Map<String, Object> urlInfo = new HashMap<>();
+        
+        try {
+            // Convert API URL to dashboard URL
+            String dashboardUrl = convertApiUrlToDashboardUrl(managementApiUrl);
+            
+            urlInfo.put("dashboard_url", dashboardUrl);
+            urlInfo.put("api_url", managementApiUrl);
+            urlInfo.put("status", "available");
+            urlInfo.put("timestamp", System.currentTimeMillis());
+            
+            log.debug("RabbitMQ dashboard URL: {}", dashboardUrl);
+            
+        } catch (Exception e) {
+            log.error("Failed to determine RabbitMQ dashboard URL: {}", e.getMessage());
+            urlInfo.put("dashboard_url", null);
+            urlInfo.put("api_url", managementApiUrl);
+            urlInfo.put("status", "error");
+            urlInfo.put("error", e.getMessage());
+            urlInfo.put("timestamp", System.currentTimeMillis());
+        }
+        
+        return urlInfo;
+    }
+    
+    /**
+     * Convert management API URL to dashboard URL
+     */
+    private String convertApiUrlToDashboardUrl(String apiUrl) {
+        if (apiUrl == null || apiUrl.isEmpty()) {
+            return null;
+        }
+        
+        try {
+            // Remove /api suffix and any trailing slashes
+            String dashboardUrl = apiUrl.replaceAll("/api/?$", "");
+            
+            // Ensure it ends with just the base URL
+            if (!dashboardUrl.endsWith("/")) {
+                dashboardUrl += "/";
+            }
+            
+            log.info("Converted API URL {} to dashboard URL {}", apiUrl, dashboardUrl);
+            return dashboardUrl;
+            
+        } catch (Exception e) {
+            log.warn("Could not convert API URL to dashboard URL: {}", e.getMessage());
+            return apiUrl; // Return as-is if conversion fails
+        }
+    }
+    
+    /**
+     * Get metrics for the vehicle_events queue specifically
+     */
+    public Map<String, Object> getVehicleEventsQueueMetrics() {
+        Map<String, Object> result = new HashMap<>();
+        String vehicleEventsQueueName = "vehicle_events";
+        
+        try {
+            Map<String, Object> queueMetrics = getQueueMetrics(vehicleEventsQueueName);
+            
+            if (!queueMetrics.isEmpty()) {
+                result.put("queue_name", vehicleEventsQueueName);
+                result.put("messages_in_queue", queueMetrics.get("messages"));
+                result.put("total_messages", queueMetrics.get("messages_published_to_queue"));
+                result.put("delivery_rate", queueMetrics.get("delivery_rate"));
+                result.put("publish_rate", queueMetrics.get("publish_rate"));
+                result.put("status", "healthy");
+            } else {
+                result.put("queue_name", vehicleEventsQueueName);
+                result.put("messages_in_queue", 0);
+                result.put("total_messages", 0);
+                result.put("delivery_rate", 0.0);
+                result.put("publish_rate", 0.0);
+                result.put("status", "error");
+                result.put("error", "Could not fetch queue metrics");
+            }
+            
+            result.put("timestamp", System.currentTimeMillis());
+            log.debug("Retrieved vehicle_events queue metrics: {}", result);
+            
+        } catch (Exception e) {
+            log.error("Failed to get vehicle_events queue metrics: {}", e.getMessage());
+            result.put("queue_name", vehicleEventsQueueName);
+            result.put("messages_in_queue", 0);
+            result.put("total_messages", 0);
+            result.put("delivery_rate", 0.0);
+            result.put("publish_rate", 0.0);
+            result.put("status", "error");
+            result.put("error", e.getMessage());
+            result.put("timestamp", System.currentTimeMillis());
+        }
+        
+        return result;
+    }
+    
+    /**
+     * Get metrics for events processor (messages processed and accidents detected)
+     */
+    public Map<String, Object> getEventsProcessorMetrics() {
+        Map<String, Object> result = new HashMap<>();
+        
+        try {
+            // Get exchange throughput data to calculate messages coming into processor
+            Map<String, Object> exchangeData = getExchangeThroughputData();
+            
+            // Get vehicle_events queue data to see accidents being sent out
+            Map<String, Object> vehicleEventsMetrics = getVehicleEventsQueueMetrics();
+            
+            // Messages in = exchange out to processor path
+            long messagesIn = 0;
+            if (exchangeData != null) {
+                Object totalOut = exchangeData.get("total_publish_out");
+                if (totalOut instanceof Number) {
+                    // Assume roughly half goes to processor, half to HDFS
+                    messagesIn = ((Number) totalOut).longValue() / 2;
+                }
+            }
+            
+            // Accidents detected = messages published to vehicle_events queue
+            long accidentsDetected = 0;
+            if (vehicleEventsMetrics != null) {
+                Object totalMessages = vehicleEventsMetrics.get("total_messages");
+                if (totalMessages instanceof Number) {
+                    accidentsDetected = ((Number) totalMessages).longValue();
+                }
+            }
+            
+            result.put("messages_in", messagesIn);
+            result.put("accidents_detected", accidentsDetected);
+            result.put("status", "healthy");
+            result.put("timestamp", System.currentTimeMillis());
+            
+            log.debug("Events processor metrics - Messages in: {}, Accidents detected: {}", messagesIn, accidentsDetected);
+            
+        } catch (Exception e) {
+            log.error("Failed to get events processor metrics: {}", e.getMessage());
+            result.put("messages_in", 0);
+            result.put("accidents_detected", 0);
+            result.put("status", "error");
+            result.put("error", e.getMessage());
+            result.put("timestamp", System.currentTimeMillis());
+        }
+        
+        return result;
+    }
+    
+    /**
+     * Get exchange throughput data (reusable method)
+     */
+    private Map<String, Object> getExchangeThroughputData() {
+        try {
+            String exchangeUrl = managementApiUrl + "/exchanges/" + vhost + "/" + exchangeName;
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                exchangeUrl, 
+                HttpMethod.GET, 
+                httpEntity, 
+                (Class<Map<String, Object>>) (Class<?>) Map.class
+            );
+            
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                return response.getBody();
+            }
+            
+        } catch (Exception e) {
+            log.debug("Failed to get exchange throughput data: {}", e.getMessage());
+        }
+        
+        return null;
+    }
 
     /**
      * Get all queues bound to the telematics_exchange with their metrics

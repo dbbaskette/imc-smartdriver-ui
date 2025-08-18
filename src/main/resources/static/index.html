@@ -75,6 +75,18 @@
         .component {
             cursor: pointer;
         }
+        .component.clickable-service {
+            cursor: pointer;
+        }
+        .component.clickable-service:hover {
+            opacity: 0.8;
+        }
+        .component.clickable-service:hover .component-icon {
+            filter: drop-shadow(0 0 5px #34D399);
+        }
+        .component.clickable-service:hover .component-svg-icon {
+            filter: drop-shadow(0 0 5px #34D399);
+        }
         .component-icon {
             font-size: 48px;
             fill: #9CA3AF;
@@ -387,11 +399,36 @@
                 const tooltip = document.getElementById('tooltip');
                 let tooltipContent = `<strong>${d[1].label}</strong><br/>${d[1].description}`;
                 
+                // Add clickable indicator for generator
+                if (d[0] === 'generator' && telemetryMetrics && telemetryMetrics.service_url) {
+                    tooltipContent += `<br/><br/><em>Click to open service dashboard</em>`;
+                    tooltipContent += `<br/>Service: ${telemetryMetrics.service_url}`;
+                }
+                
+                // Add clickable indicator for exchange components
+                if ((d[0] === 'exchange' || d[0] === 'events') && rabbitMQDashboardUrl) {
+                    tooltipContent += `<br/><br/><em>Click to open RabbitMQ dashboard</em>`;
+                }
+                
                 // Add queue information for exchange
                 if (d[0] === 'exchange' && exchangeQueueMetrics && exchangeQueueMetrics.queues) {
-                    tooltipContent += `<br/><br/><strong>Bound Queues:</strong>`;
+                    tooltipContent += `<br/><br/><strong>Exchange Summary:</strong>`;
+                    if (exchangeMetrics) {
+                        const inFormatted = exchangeMetrics.total_publish_in > 1000 ? (exchangeMetrics.total_publish_in/1000).toFixed(1) + 'k' : exchangeMetrics.total_publish_in;
+                        const outFormatted = exchangeMetrics.total_publish_out > 1000 ? (exchangeMetrics.total_publish_out/1000).toFixed(1) + 'k' : exchangeMetrics.total_publish_out;
+                        tooltipContent += `<br/>• Messages In: ${inFormatted} (${(exchangeMetrics.current_rate_in || 0).toFixed(1)}/s)`;
+                        tooltipContent += `<br/>• Messages Out: ${outFormatted} (${(exchangeMetrics.current_rate_out || 0).toFixed(1)}/s)`;
+                        tooltipContent += `<br/>• Amplification: ${(exchangeMetrics.amplification_ratio || 0).toFixed(2)}x`;
+                    }
+                    tooltipContent += `<br/><br/><strong>Queue Details (${exchangeQueueMetrics.total_queues}):</strong>`;
                     exchangeQueueMetrics.queues.forEach(queue => {
-                        tooltipContent += `<br/>• ${queue.name}: ${queue.messages} msgs (${queue.delivery_rate.toFixed(1)}/s)`;
+                        const status = queue.messages > 0 ? 'active' : 'idle';
+                        const publishedFormatted = queue.messages_published_to_queue > 1000 ? (queue.messages_published_to_queue/1000).toFixed(1) + 'k' : queue.messages_published_to_queue;
+                        const deliveredFormatted = queue.messages_delivered > 1000 ? (queue.messages_delivered/1000).toFixed(1) + 'k' : queue.messages_delivered;
+                        const queueShortName = queue.name.replace('telematics_exchange.', '');
+                        tooltipContent += `<br/>• <strong>${queueShortName}</strong>: ${queue.messages} pending`;
+                        tooltipContent += `<br/>  └ Published: ${publishedFormatted}, Delivered: ${deliveredFormatted}`;
+                        tooltipContent += `<br/>  └ Rates: ${(queue.publish_rate || 0).toFixed(1)}/s in, ${(queue.delivery_rate || 0).toFixed(1)}/s out`;
                     });
                 }
                 
@@ -409,7 +446,20 @@
                 document.getElementById('tooltip').style.display = 'none';
             })
             .on("click", function(event, d) {
-                alert(`Click details for ${d[1].label}\n\n${d[1].description}\n\n[Placeholder for detailed view]`);
+                // Handle generator component click - open service URL
+                if (d[0] === 'generator' && telemetryMetrics && telemetryMetrics.service_url) {
+                    const serviceUrl = telemetryMetrics.service_url;
+                    console.log('Opening telemetry generator service URL:', serviceUrl);
+                    window.open(serviceUrl, '_blank');
+                } 
+                // Handle exchange components - open RabbitMQ management dashboard
+                else if ((d[0] === 'exchange' || d[0] === 'events') && rabbitMQDashboardUrl) {
+                    console.log('Opening RabbitMQ management dashboard:', rabbitMQDashboardUrl);
+                    window.open(rabbitMQDashboardUrl, '_blank');
+                } 
+                else {
+                    alert(`Click details for ${d[1].label}\n\n${d[1].description}\n\n[Placeholder for detailed view]`);
+                }
             });
 
         // Remove old queue count and score displays for cleaner vertical layout
@@ -423,8 +473,8 @@
                     [{label: ' Rate ', value: ' Rate '}, {label: '', value: '0.0/sec'}]
                 ],
                 exchange: [
-                    [{label: 'In', value: '0'}, {label: 'Out', value: '0'}],
-                    [{label: 'Queues', value: '0 Q'}, {label: 'Rate', value: '0.0/s'}]
+                    [{label: ' In ', value: '0'}, {label: '', value: '0.0/s'}],
+                    [{label: ' Out ', value: '0'}, {label: '', value: '0.0/s'}]
                 ],
                 hdfs: [
                     [{label: 'Proc', value: '1.2k'}, {label: 'Files', value: '892'}],
@@ -435,12 +485,12 @@
                     [{label: 'Blocks', value: '1.8k'}, {label: 'Nodes', value: '3'}]
                 ],
                 processor: [
-                    [{label: 'Proc', value: '1.2k'}, {label: 'Events', value: '23'}],
-                    [{label: 'Threshold', value: '2.5g'}, {label: 'Rate', value: '95%'}]
+                    [{label: ' In ', value: '0'}, {label: '', value: '0'}],
+                    [{label: ' Accidents ', value: '0'}, {label: '', value: '0'}]
                 ],
                 events: [
-                    [{label: 'Queue', value: '0'}, {label: 'Total', value: '156'}],
-                    [{label: 'Accidents', value: '23'}, {label: 'Rate', value: '0.3/s'}]
+                    [{label: ' Queue ', value: '0'}, {label: '', value: '0'}],
+                    [{label: ' Total ', value: '0'}, {label: '', value: '0'}]
                 ],
                 database: [
                     [{label: 'Proc', value: '1.2k'}, {label: 'Rows', value: '45k'}],
@@ -552,6 +602,11 @@
 
         // Queue display removed for cleaner UI
 
+        // Global variables for component metrics
+        let vehicleEventsMetrics = null;
+        let eventsProcessorMetrics = null;
+        let rabbitMQDashboardUrl = null;
+
         // Fetch exchange throughput data
         async function fetchExchangeThroughput() {
             try {
@@ -613,6 +668,15 @@
             if (metrics && metrics.status !== 'error') {
                 // Update generator grid with real metrics
                 updateGeneratorGrid(metrics);
+                
+                // Add clickable class to generator if service URL is available
+                if (metrics.service_url) {
+                    const generatorComponent = document.querySelector('g.component:first-of-type');
+                    if (generatorComponent) {
+                        generatorComponent.classList.add('clickable-service');
+                        console.log('Generator component now clickable with URL:', metrics.service_url);
+                    }
+                }
             }
         }
         
@@ -686,35 +750,149 @@
 
         // Update exchange component grid with queue metrics
         function updateExchangeGrid(queueData) {
-            if (!queueData || queueData.error || !queueData.queues) return;
+            // Use exchange throughput data if available, otherwise use queue data
+            let exchangeData = exchangeMetrics || {};
             
-            const queues = queueData.queues;
-            let totalIn = 0;
-            let totalOut = 0;
-            let totalQueues = queues.length;
-            let avgRate = 0;
+            // Extract exchange throughput metrics
+            const messagesIn = exchangeData.total_publish_in || 0;
+            const messagesOut = exchangeData.total_publish_out || 0; 
+            const rateIn = exchangeData.current_rate_in || 0;
+            const rateOut = exchangeData.current_rate_out || 0;
             
-            // Calculate totals across all queues
-            queues.forEach(queue => {
-                totalIn += queue.messages_published_to_queue || 0;
-                totalOut += queue.messages_delivered || 0;
-                avgRate += queue.delivery_rate || 0;
-            });
+            console.log('Updating exchange grid with:', messagesIn, 'in,', messagesOut, 'out,', rateIn, '/s in,', rateOut, '/s out');
             
-            if (totalQueues > 0) {
-                avgRate = avgRate / totalQueues;
+            // Try same selector approaches as generator
+            let exchangeGridValues = document.querySelectorAll('g.component:nth-of-type(2) .data-grid-value');
+            console.log('Found exchange grid elements (approach 1):', exchangeGridValues.length);
+            
+            if (exchangeGridValues.length === 0) {
+                // Try finding by approximate position (exchange is at x=350, scaled)
+                const allGridValues = document.querySelectorAll('.data-grid-value');
+                if (allGridValues.length >= 8) {
+                    exchangeGridValues = Array.from(allGridValues).slice(4, 8); // Assume exchange is 2nd component
+                    console.log('Using elements 4-8 as exchange grid');
+                }
             }
             
-            // Find exchange grid cells and update them
-            const exchangeGridValues = document.querySelectorAll('g[transform*="translate(350"] .data-grid-value');
             if (exchangeGridValues.length >= 4) {
-                // Top row: Total In, Total Out  
-                exchangeGridValues[0].textContent = totalIn > 1000 ? (totalIn/1000).toFixed(1) + 'k' : totalIn;
-                exchangeGridValues[1].textContent = totalOut > 1000 ? (totalOut/1000).toFixed(1) + 'k' : totalOut;
+                // Format values in same style as generator (key-value pairs)
+                const formattedIn = messagesIn > 1000 ? (messagesIn/1000).toFixed(1) + 'k' : messagesIn;
+                const formattedOut = messagesOut > 1000 ? (messagesOut/1000).toFixed(1) + 'k' : messagesOut;
+                const formattedRateIn = rateIn.toFixed(1) + '/s';
+                const formattedRateOut = rateOut.toFixed(1) + '/s';
                 
-                // Bottom row: Queue count, Average rate
-                exchangeGridValues[2].textContent = totalQueues + ' Q';
-                exchangeGridValues[3].textContent = avgRate.toFixed(1) + '/s';
+                // Row 1: Label " In " and Messages In Value
+                exchangeGridValues[0].textContent = ' In ';
+                exchangeGridValues[1].textContent = formattedIn;
+                
+                // Row 2: Label " Out " and Messages Out Value  
+                exchangeGridValues[2].textContent = ' Out ';
+                exchangeGridValues[3].textContent = formattedOut;
+                
+                console.log('Updated exchange grid:', formattedIn, 'in,', formattedOut, 'out');
+            } else {
+                console.warn('Could not find exchange grid elements. Found:', exchangeGridValues.length, 'elements');
+            }
+        }
+
+        // Fetch vehicle events queue metrics
+        async function fetchVehicleEventsMetrics() {
+            try {
+                const response = await fetch('/api/vehicle-events/queue/metrics');
+                const data = await response.json();
+                vehicleEventsMetrics = data;
+                
+                // Update vehicle events component grid
+                updateVehicleEventsGrid(data);
+                
+                console.log('Vehicle events metrics updated:', data);
+                return data;
+            } catch (error) {
+                console.error('Failed to fetch vehicle events metrics:', error);
+                return null;
+            }
+        }
+
+        // Fetch events processor metrics
+        async function fetchEventsProcessorMetrics() {
+            try {
+                const response = await fetch('/api/events-processor/metrics');
+                const data = await response.json();
+                eventsProcessorMetrics = data;
+                
+                // Update events processor component grid
+                updateEventsProcessorGrid(data);
+                
+                console.log('Events processor metrics updated:', data);
+                return data;
+            } catch (error) {
+                console.error('Failed to fetch events processor metrics:', error);
+                return null;
+            }
+        }
+
+        // Fetch RabbitMQ management dashboard URL
+        async function fetchRabbitMQDashboardInfo() {
+            try {
+                // Get the actual management URL from our backend
+                const response = await fetch('/api/rabbitmq/management/url');
+                const data = await response.json();
+                
+                if (data.status === 'available' && data.dashboard_url) {
+                    rabbitMQDashboardUrl = data.dashboard_url;
+                    console.log('RabbitMQ dashboard URL set to:', rabbitMQDashboardUrl);
+                    
+                    // Mark exchange components as clickable
+                    markExchangeComponentsClickable();
+                } else {
+                    // Fallback to derived URL
+                    rabbitMQDashboardUrl = deriveManagementUrl();
+                    console.log('Using derived RabbitMQ dashboard URL:', rabbitMQDashboardUrl);
+                    markExchangeComponentsClickable();
+                }
+                
+                return data;
+            } catch (error) {
+                console.error('Failed to fetch RabbitMQ dashboard info:', error);
+                // Use fallback URL
+                rabbitMQDashboardUrl = deriveManagementUrl();
+                markExchangeComponentsClickable();
+                return null;
+            }
+        }
+
+        // Derive RabbitMQ management dashboard URL
+        function deriveManagementUrl() {
+            // For Cloud Foundry or if we have a management API URL pattern
+            // We'll try to construct it from known patterns
+            
+            // Option 1: Try localhost for local development
+            if (window.location.hostname === 'localhost') {
+                return 'http://localhost:15672';
+            }
+            
+            // Option 2: For CF deployments, typically management console is available
+            // We'll make a reasonable assumption based on the app URL
+            const currentHost = window.location.hostname;
+            
+            // For CF, the management console might be available through a different route
+            // This is a reasonable fallback - users can adjust if needed
+            return `https://${currentHost.replace('imc-smartdriver-ui', 'rabbitmq-management')}/`;
+        }
+
+        // Mark exchange components as clickable
+        function markExchangeComponentsClickable() {
+            const exchangeComponent = document.querySelector('g.component:nth-of-type(2)'); // telematics_exchange
+            const eventsComponent = document.querySelector('g.component:nth-of-type(6)'); // vehicle_events
+            
+            if (exchangeComponent) {
+                exchangeComponent.classList.add('clickable-service');
+                console.log('telematics_exchange component now clickable');
+            }
+            
+            if (eventsComponent) {
+                eventsComponent.classList.add('clickable-service');
+                console.log('vehicle_events component now clickable');
             }
         }
 
@@ -736,6 +914,88 @@
                 componentHealth.exchange = false;
                 updateHealthIndicators();
                 return null;
+            }
+        }
+
+        // Update vehicle events component grid
+        function updateVehicleEventsGrid(data) {
+            if (!data || data.status === 'error') return;
+            
+            const queueDepth = data.messages_in_queue || 0;
+            const totalMessages = data.total_messages || 0;
+            
+            console.log('Updating vehicle events grid with queue:', queueDepth, 'total:', totalMessages);
+            
+            // Find vehicle events grid (it's the "events" component - around position 6)
+            let eventsGridValues = document.querySelectorAll('g.component:nth-of-type(6) .data-grid-value');
+            console.log('Found events grid elements (approach 1):', eventsGridValues.length);
+            
+            if (eventsGridValues.length === 0) {
+                // Try finding by approximate position
+                const allGridValues = document.querySelectorAll('.data-grid-value');
+                if (allGridValues.length >= 24) { // 6 components * 4 values each
+                    eventsGridValues = Array.from(allGridValues).slice(20, 24); // 6th component
+                    console.log('Using elements 20-24 as events grid');
+                }
+            }
+            
+            if (eventsGridValues.length >= 4) {
+                // Format values
+                const formattedQueue = queueDepth > 1000 ? (queueDepth/1000).toFixed(1) + 'k' : queueDepth;
+                const formattedTotal = totalMessages > 1000 ? (totalMessages/1000).toFixed(1) + 'k' : totalMessages;
+                
+                // Row 1: Label " Queue " and Queue Depth Value
+                eventsGridValues[0].textContent = ' Queue ';
+                eventsGridValues[1].textContent = formattedQueue;
+                
+                // Row 2: Label " Total " and Total Messages Value  
+                eventsGridValues[2].textContent = ' Total ';
+                eventsGridValues[3].textContent = formattedTotal;
+                
+                console.log('Updated events grid:', formattedQueue, 'queue,', formattedTotal, 'total');
+            } else {
+                console.warn('Could not find vehicle events grid elements. Found:', eventsGridValues.length, 'elements');
+            }
+        }
+
+        // Update events processor component grid
+        function updateEventsProcessorGrid(data) {
+            if (!data || data.status === 'error') return;
+            
+            const messagesIn = data.messages_in || 0;
+            const accidentsDetected = data.accidents_detected || 0;
+            
+            console.log('Updating events processor grid with in:', messagesIn, 'accidents:', accidentsDetected);
+            
+            // Find events processor grid (it's the "processor" component - around position 5)
+            let processorGridValues = document.querySelectorAll('g.component:nth-of-type(5) .data-grid-value');
+            console.log('Found processor grid elements (approach 1):', processorGridValues.length);
+            
+            if (processorGridValues.length === 0) {
+                // Try finding by approximate position
+                const allGridValues = document.querySelectorAll('.data-grid-value');
+                if (allGridValues.length >= 20) { // 5 components * 4 values each
+                    processorGridValues = Array.from(allGridValues).slice(16, 20); // 5th component
+                    console.log('Using elements 16-20 as processor grid');
+                }
+            }
+            
+            if (processorGridValues.length >= 4) {
+                // Format values
+                const formattedIn = messagesIn > 1000 ? (messagesIn/1000).toFixed(1) + 'k' : messagesIn;
+                const formattedAccidents = accidentsDetected > 1000 ? (accidentsDetected/1000).toFixed(1) + 'k' : accidentsDetected;
+                
+                // Row 1: Label " In " and Messages In Value
+                processorGridValues[0].textContent = ' In ';
+                processorGridValues[1].textContent = formattedIn;
+                
+                // Row 2: Label " Accidents " and Accidents Detected Value  
+                processorGridValues[2].textContent = ' Accidents ';
+                processorGridValues[3].textContent = formattedAccidents;
+                
+                console.log('Updated processor grid:', formattedIn, 'in,', formattedAccidents, 'accidents');
+            } else {
+                console.warn('Could not find events processor grid elements. Found:', processorGridValues.length, 'elements');
             }
         }
 
@@ -832,6 +1092,12 @@
         // Fetch RabbitMQ health every 7 seconds
         setInterval(fetchRabbitMQHealth, 7000);
         
+        // Fetch vehicle events metrics every 4 seconds  
+        setInterval(fetchVehicleEventsMetrics, 4000);
+        
+        // Fetch events processor metrics every 5.5 seconds
+        setInterval(fetchEventsProcessorMetrics, 5500);
+        
         // Initial metrics fetch
         fetchMetrics();
         fetchExchangeThroughput();
@@ -839,6 +1105,9 @@
         fetchTelemetryMetrics();
         fetchExchangeQueueMetrics();
         fetchRabbitMQHealth();
+        fetchVehicleEventsMetrics();
+        fetchEventsProcessorMetrics();
+        fetchRabbitMQDashboardInfo();
 
     </script>
 </body>
