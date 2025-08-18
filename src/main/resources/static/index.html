@@ -205,7 +205,8 @@
                     
                     <h4 style="color: #E5E7EB; margin: 20px 0 10px 0; font-size: 1rem;">Component Health</h4>
                     <div style="margin: 5px 0;"><span id="health-status-generator">🔴</span> Telemetry Generator</div>
-                    <div style="margin: 5px 0;">🟢 RabbitMQ Exchange</div>
+                    
+                    <div style="margin: 5px 0;"><span id="health-status-exchange">🔴</span> RabbitMQ Exchange</div>
                     <div style="margin: 5px 0;"><span id="health-status-hdfs">🔴</span> HDFS Sink</div>
                     <div style="margin: 5px 0;">🟢 Hadoop HDFS</div>
                     <div style="margin: 5px 0;"><span id="health-status-processor">🔴</span> Events Processor</div>
@@ -300,7 +301,7 @@
             .text(d => d[1].label);
 
         // Add health indicators for components with actuator endpoints
-        const healthComponents = ['generator', 'processor', 'hdfs', 'database']; // database maps to jdbc
+        const healthComponents = ['generator', 'exchange', 'processor', 'hdfs', 'database']; // database maps to jdbc
         componentGroups.each(function(d) {
             const componentId = d[0];
             if (healthComponents.includes(componentId)) {
@@ -321,28 +322,28 @@
             // Grid background
             group.append("rect")
                 .attr("class", "data-grid-bg")
-                .attr("x", -30)
+                .attr("x", -60)
                 .attr("y", 35)
-                .attr("width", 60)
+                .attr("width", 120)
                 .attr("height", 40)
                 .attr("rx", 4);
             
             // Grid border
             group.append("rect")
                 .attr("class", "data-grid")
-                .attr("x", -30)
+                .attr("x", -60)
                 .attr("y", 35)
-                .attr("width", 60)
+                .attr("width", 120)
                 .attr("height", 40)
                 .attr("rx", 4);
             
             // Grid cells (2x2)
-            const cellWidth = 30;
+            const cellWidth = 60;
             const cellHeight = 20;
             
             gridData.forEach((row, rowIndex) => {
                 row.forEach((cell, colIndex) => {
-                    const x = -30 + (colIndex * cellWidth);
+                    const x = -60 + (colIndex * cellWidth);
                     const y = 35 + (rowIndex * cellHeight);
                     
                     // Cell separator lines
@@ -357,9 +358,9 @@
                     if (rowIndex > 0) {
                         group.append("line")
                             .attr("class", "data-grid")
-                            .attr("x1", -30)
+                            .attr("x1", -60)
                             .attr("y1", y)
-                            .attr("x2", 30)
+                            .attr("x2", 60)
                             .attr("y2", y);
                     }
                     
@@ -384,7 +385,17 @@
         componentGroups
             .on("mouseover", function(event, d) {
                 const tooltip = document.getElementById('tooltip');
-                tooltip.innerHTML = `<strong>${d[1].label}</strong><br/>${d[1].description}`;
+                let tooltipContent = `<strong>${d[1].label}</strong><br/>${d[1].description}`;
+                
+                // Add queue information for exchange
+                if (d[0] === 'exchange' && exchangeQueueMetrics && exchangeQueueMetrics.queues) {
+                    tooltipContent += `<br/><br/><strong>Bound Queues:</strong>`;
+                    exchangeQueueMetrics.queues.forEach(queue => {
+                        tooltipContent += `<br/>• ${queue.name}: ${queue.messages} msgs (${queue.delivery_rate.toFixed(1)}/s)`;
+                    });
+                }
+                
+                tooltip.innerHTML = tooltipContent;
                 tooltip.style.display = 'block';
                 tooltip.style.left = (event.pageX + 10) + 'px';
                 tooltip.style.top = (event.pageY - 10) + 'px';
@@ -408,12 +419,12 @@
         function generateMockData(componentType) {
             const mockData = {
                 generator: [
-                    [{label: 'Rate', value: '2.1/s'}, {label: 'Total', value: '1.2k'}],
-                    [{label: 'Speed', value: '65mph'}, {label: 'G-Force', value: '1.2g'}]
+                    [{label: ' Msgs ', value: ' Msgs '}, {label: '', value: '0'}],
+                    [{label: ' Rate ', value: ' Rate '}, {label: '', value: '0.0/sec'}]
                 ],
                 exchange: [
-                    [{label: 'In', value: '127'}, {label: 'Out', value: '254'}],
-                    [{label: 'Queues', value: '3'}, {label: 'Rate', value: '4.2/s'}]
+                    [{label: 'In', value: '0'}, {label: 'Out', value: '0'}],
+                    [{label: 'Queues', value: '0 Q'}, {label: 'Rate', value: '0.0/s'}]
                 ],
                 hdfs: [
                     [{label: 'Proc', value: '1.2k'}, {label: 'Files', value: '892'}],
@@ -450,11 +461,15 @@
         let currentQueueSize = 0;
         let currentMetrics = null;
         let exchangeMetrics = null;
+        let telemetryMetrics = null;
+        let exchangeQueueMetrics = null;
+        let rabbitMQHealth = null;
         let componentHealth = {
             generator: true,
             processor: true, 
             hdfs: true,
-            jdbc: true
+            jdbc: true,
+            exchange: true  // Add exchange health tracking
         };
 
         function animatePacket(pathId) {
@@ -505,13 +520,9 @@
         
         function updateDriverScore(score = null) {
             const newScore = score !== null ? Math.round(score) : Math.floor(75 + Math.random() * 25);
-            scoreValueText.text(newScore);
-            
-            let color = "#34D399"; // Green
-            if (newScore < 85) color = "#FBBF24"; // Yellow
-            if (newScore < 80) color = "#F87171"; // Red
-            
-            scoreValueText.transition().duration(500).style("fill", color);
+            // scoreValueText is not defined, so we'll skip this for now
+            // This was likely from an old design that had a score display
+            console.log('Driver score would be:', newScore);
         }
 
         // Fetch real metrics from API
@@ -548,13 +559,9 @@
                 const data = await response.json();
                 exchangeMetrics = data;
                 
-                // Update exchange throughput display
-                document.getElementById('exchange-in').textContent = data.total_publish_in || 0;
-                document.getElementById('exchange-out').textContent = data.total_publish_out || 0;
-                
-                // Update telemetry display with rate and total from exchange data
-                document.getElementById('telemetry-rate').textContent = (data.current_rate_in || 0).toFixed(1) + '/s';
-                document.getElementById('telemetry-total').textContent = data.total_publish_in || 0;
+                // These elements don't exist in current UI, so skip updating them
+                // The exchange data is used elsewhere in the component grid
+                console.log('Exchange throughput data:', data);
                 
                 console.log('Exchange throughput updated:', data);
                 return data;
@@ -579,6 +586,155 @@
                 return data;
             } catch (error) {
                 console.error('Failed to fetch component health:', error);
+                return null;
+            }
+        }
+
+        // Fetch telemetry generator publishing metrics
+        async function fetchTelemetryMetrics() {
+            try {
+                const response = await fetch('/api/telemetry/generator/metrics');
+                const data = await response.json();
+                telemetryMetrics = data;
+                
+                // Update publishing metrics display
+                updatePublishingMetrics(data);
+                
+                console.log('Telemetry generator metrics updated:', data);
+                return data;
+            } catch (error) {
+                console.error('Failed to fetch telemetry generator metrics:', error);
+                return null;
+            }
+        }
+
+        // Update publishing metrics in UI
+        function updatePublishingMetrics(metrics) {
+            if (metrics && metrics.status !== 'error') {
+                // Update generator grid with real metrics
+                updateGeneratorGrid(metrics);
+            }
+        }
+        
+        // Update generator component grid with real telemetry metrics
+        function updateGeneratorGrid(metrics) {
+            if (!metrics || metrics.status === 'error') return;
+            
+            const messageRatePerSec = metrics.messages_rate_per_sec || 0;
+            const totalMessages = metrics.messages_published_total || 0;
+            
+            console.log('Updating generator grid with:', totalMessages, messageRatePerSec);
+            
+            // Find generator grid cells - try multiple approaches
+            let generatorGridValues = document.querySelectorAll('.component:first-child .data-grid-value');
+            console.log('Found generator grid elements (approach 1):', generatorGridValues.length);
+            
+            if (generatorGridValues.length === 0) {
+                // Try a more specific selector
+                generatorGridValues = document.querySelectorAll('g.component:first-of-type .data-grid-value');
+                console.log('Found generator grid elements (approach 2):', generatorGridValues.length);
+            }
+            
+            if (generatorGridValues.length === 0) {
+                // Try finding by position range
+                const allGridValues = document.querySelectorAll('.data-grid-value');
+                console.log('Total grid elements found:', allGridValues.length);
+                
+                // The generator should be the first component (leftmost)
+                if (allGridValues.length >= 4) {
+                    generatorGridValues = Array.from(allGridValues).slice(0, 4);
+                    console.log('Using first 4 grid elements as generator grid');
+                }
+            }
+            
+            if (generatorGridValues.length >= 4) {
+                // Format values
+                const formattedMessages = totalMessages > 1000 ? (totalMessages/1000).toFixed(1) + 'k' : totalMessages;
+                const formattedRate = messageRatePerSec.toFixed(1) + '/sec';
+                
+                // Row 1: Label "Msgs" and Value
+                generatorGridValues[0].textContent = ' Msgs '; // Label with spacing
+                generatorGridValues[1].textContent = formattedMessages; // Value
+                
+                // Row 2: Label "Rate" and Value  
+                generatorGridValues[2].textContent = ' Rate '; // Label with spacing
+                generatorGridValues[3].textContent = formattedRate; // Value
+                
+                console.log('Updated generator grid:', formattedMessages, formattedRate);
+            } else {
+                console.warn('Could not find generator grid elements. Selector returned:', generatorGridValues.length, 'elements');
+            }
+        }
+
+        // Fetch telematics exchange queue metrics
+        async function fetchExchangeQueueMetrics() {
+            try {
+                const response = await fetch('/api/telematics/exchange/queues');
+                const data = await response.json();
+                exchangeQueueMetrics = data;
+                
+                // Update exchange component grid with queue data
+                updateExchangeGrid(data);
+                
+                console.log('Exchange queue metrics updated:', data);
+                return data;
+            } catch (error) {
+                console.error('Failed to fetch exchange queue metrics:', error);
+                return null;
+            }
+        }
+
+        // Update exchange component grid with queue metrics
+        function updateExchangeGrid(queueData) {
+            if (!queueData || queueData.error || !queueData.queues) return;
+            
+            const queues = queueData.queues;
+            let totalIn = 0;
+            let totalOut = 0;
+            let totalQueues = queues.length;
+            let avgRate = 0;
+            
+            // Calculate totals across all queues
+            queues.forEach(queue => {
+                totalIn += queue.messages_published_to_queue || 0;
+                totalOut += queue.messages_delivered || 0;
+                avgRate += queue.delivery_rate || 0;
+            });
+            
+            if (totalQueues > 0) {
+                avgRate = avgRate / totalQueues;
+            }
+            
+            // Find exchange grid cells and update them
+            const exchangeGridValues = document.querySelectorAll('g[transform*="translate(350"] .data-grid-value');
+            if (exchangeGridValues.length >= 4) {
+                // Top row: Total In, Total Out  
+                exchangeGridValues[0].textContent = totalIn > 1000 ? (totalIn/1000).toFixed(1) + 'k' : totalIn;
+                exchangeGridValues[1].textContent = totalOut > 1000 ? (totalOut/1000).toFixed(1) + 'k' : totalOut;
+                
+                // Bottom row: Queue count, Average rate
+                exchangeGridValues[2].textContent = totalQueues + ' Q';
+                exchangeGridValues[3].textContent = avgRate.toFixed(1) + '/s';
+            }
+        }
+
+        // Fetch RabbitMQ exchange health status
+        async function fetchRabbitMQHealth() {
+            try {
+                const response = await fetch('/api/rabbitmq/exchange/health');
+                const data = await response.json();
+                rabbitMQHealth = data;
+                
+                // Update exchange health in component health object
+                componentHealth.exchange = data.healthy;
+                updateHealthIndicators();
+                
+                console.log('RabbitMQ health updated:', data);
+                return data;
+            } catch (error) {
+                console.error('Failed to fetch RabbitMQ health:', error);
+                componentHealth.exchange = false;
+                updateHealthIndicators();
                 return null;
             }
         }
@@ -609,11 +765,11 @@
                 'generator': 'generator',
                 'processor': 'processor', 
                 'hdfs': 'hdfs',
-                'database': 'jdbc',  // Map database component to jdbc health
-                'exchange': true,    // RabbitMQ - always healthy for now
-                'hadoop': true,      // Hadoop - always healthy for now  
-                'events': true,      // RabbitMQ queue - always healthy for now
-                'greenplum': true    // Greenplum - always healthy for now
+                'database': 'jdbc',     // Map database component to jdbc health
+                'exchange': 'exchange', // RabbitMQ exchange - now monitored
+                'hadoop': true,         // Hadoop - always healthy for now  
+                'events': true,         // RabbitMQ queue - always healthy for now
+                'greenplum': true       // Greenplum - always healthy for now
             };
             
             const healthStatus = healthMap[componentName];
@@ -667,10 +823,22 @@
         // Fetch component health every 8 seconds (matches backend schedule)
         setInterval(fetchComponentHealth, 8000);
         
+        // Fetch telemetry generator metrics every 5 seconds
+        setInterval(fetchTelemetryMetrics, 5000);
+        
+        // Fetch exchange queue metrics every 6 seconds  
+        setInterval(fetchExchangeQueueMetrics, 6000);
+        
+        // Fetch RabbitMQ health every 7 seconds
+        setInterval(fetchRabbitMQHealth, 7000);
+        
         // Initial metrics fetch
         fetchMetrics();
         fetchExchangeThroughput();
         fetchComponentHealth();
+        fetchTelemetryMetrics();
+        fetchExchangeQueueMetrics();
+        fetchRabbitMQHealth();
 
     </script>
 </body>

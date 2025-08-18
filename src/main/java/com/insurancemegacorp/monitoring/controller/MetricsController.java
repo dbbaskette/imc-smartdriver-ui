@@ -6,6 +6,8 @@ import com.insurancemegacorp.monitoring.service.RabbitMetricsService;
 import com.insurancemegacorp.monitoring.service.ExchangeMetricsService;
 import com.insurancemegacorp.monitoring.service.ComponentHealthService;
 import com.insurancemegacorp.monitoring.service.ServiceDiscoveryHealthService;
+import com.insurancemegacorp.monitoring.service.TelemetryGeneratorMetricsService;
+import com.insurancemegacorp.monitoring.service.TelemematicsExchangeMetricsService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +30,12 @@ public class MetricsController {
     
     @Autowired(required = false)
     private ServiceDiscoveryHealthService serviceDiscoveryHealthService;
+    
+    @Autowired
+    private TelemetryGeneratorMetricsService telemetryGeneratorMetricsService;
+    
+    @Autowired
+    private TelemematicsExchangeMetricsService telemematicsExchangeMetricsService;
 
     public MetricsController(MetricsCollectorService metricsCollectorService, 
                            RabbitMetricsService rabbitMetricsService,
@@ -138,6 +146,41 @@ public class MetricsController {
                 "timestamp", System.currentTimeMillis()
             );
             return ResponseEntity.ok(response);
+        }
+    }
+    
+    @GetMapping("/telemetry/generator/metrics")
+    public ResponseEntity<Map<String, Object>> getTelemetryGeneratorMetrics() {
+        Map<String, Object> metrics = telemetryGeneratorMetricsService.getPublishingMetrics();
+        return ResponseEntity.ok(metrics);
+    }
+    
+    @GetMapping("/telemetry/generator/health")
+    public ResponseEntity<Map<String, Object>> getTelemetryGeneratorHealth() {
+        Map<String, Object> health = telemetryGeneratorMetricsService.getHealthStatus();
+        return ResponseEntity.ok(health);
+    }
+    
+    @GetMapping("/telematics/exchange/queues")
+    public ResponseEntity<Map<String, Object>> getTelemematicsExchangeQueues() {
+        Map<String, Object> queueMetrics = telemematicsExchangeMetricsService.getExchangeQueueMetrics();
+        return ResponseEntity.ok(queueMetrics);
+    }
+    
+    @GetMapping("/rabbitmq/exchange/health")
+    public ResponseEntity<Map<String, Object>> getRabbitMQExchangeHealth() {
+        Map<String, Object> health = telemematicsExchangeMetricsService.getRabbitMQHealthStatus();
+        return ResponseEntity.ok(health);
+    }
+    
+    @GetMapping("/debug/telemetry/raw")
+    public ResponseEntity<String> getDebugTelemetryRaw() {
+        try {
+            // This endpoint will help debug what's actually being received
+            Map<String, Object> metrics = telemetryGeneratorMetricsService.getPublishingMetrics();
+            return ResponseEntity.ok("Debug telemetry metrics: " + metrics.toString());
+        } catch (Exception e) {
+            return ResponseEntity.ok("Error fetching telemetry metrics: " + e.getMessage());
         }
     }
 }
