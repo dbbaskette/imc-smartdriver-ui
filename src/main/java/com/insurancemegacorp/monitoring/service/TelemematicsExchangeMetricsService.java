@@ -1,6 +1,7 @@
 package com.insurancemegacorp.monitoring.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -24,6 +25,9 @@ public class TelemematicsExchangeMetricsService {
     private final HttpEntity<String> httpEntity;
     private final String exchangeName = "telematics_exchange";
     private final String vhost = "cf986537-69cc-4107-8b66-5542481de9ba";
+    
+    @Autowired
+    private ExchangeMetricsService exchangeMetricsService;
 
     public TelemematicsExchangeMetricsService(
             RestTemplate restTemplate,
@@ -237,7 +241,7 @@ public class TelemematicsExchangeMetricsService {
     }
     
     /**
-     * Get metrics for events processor (messages processed and accidents detected)
+     * Get metrics for events processor (messages in, messages out, events captured)
      */
     public Map<String, Object> getEventsProcessorMetrics() {
         Map<String, Object> result = new HashMap<>();
@@ -246,10 +250,10 @@ public class TelemematicsExchangeMetricsService {
             // Get exchange throughput data to calculate messages coming into processor
             Map<String, Object> exchangeData = getExchangeThroughputData();
             
-            // Get vehicle_events queue data to see accidents being sent out
+            // Get vehicle_events queue data to see events being sent out
             Map<String, Object> vehicleEventsMetrics = getVehicleEventsQueueMetrics();
             
-            // Messages in = exchange out to processor path
+            // Messages in = exchange out to processor path (roughly half of exchange output)
             long messagesIn = 0;
             if (exchangeData != null) {
                 Object totalOut = exchangeData.get("total_publish_out");
@@ -259,26 +263,78 @@ public class TelemematicsExchangeMetricsService {
                 }
             }
             
-            // Accidents detected = messages published to vehicle_events queue
-            long accidentsDetected = 0;
+            // Messages out = total database operations (assume most messages go to database)
+            long messagesOut = messagesIn; // For now, assume most messages are processed and sent to DB
+            
+            // Events captured = messages published to vehicle_events queue (accidents/events detected)
+            long eventsCaptured = 0;
             if (vehicleEventsMetrics != null) {
                 Object totalMessages = vehicleEventsMetrics.get("total_messages");
                 if (totalMessages instanceof Number) {
-                    accidentsDetected = ((Number) totalMessages).longValue();
+                    eventsCaptured = ((Number) totalMessages).longValue();
                 }
             }
             
             result.put("messages_in", messagesIn);
-            result.put("accidents_detected", accidentsDetected);
+            result.put("messages_out", messagesOut);
+            result.put("events_captured", eventsCaptured);
             result.put("status", "healthy");
             result.put("timestamp", System.currentTimeMillis());
             
-            log.debug("Events processor metrics - Messages in: {}, Accidents detected: {}", messagesIn, accidentsDetected);
+            log.debug("Events processor metrics - Messages in: {}, Messages out: {}, Events captured: {}", 
+                messagesIn, messagesOut, eventsCaptured);
             
         } catch (Exception e) {
             log.error("Failed to get events processor metrics: {}", e.getMessage());
             result.put("messages_in", 0);
-            result.put("accidents_detected", 0);
+            result.put("messages_out", 0);
+            result.put("events_captured", 0);
+            result.put("status", "error");
+            result.put("error", e.getMessage());
+            result.put("timestamp", System.currentTimeMillis());
+        }
+        
+        return result;
+    }
+    
+    /**
+     * Get metrics for HDFS Sink (messages in, files written)
+     */
+    public Map<String, Object> getHdfsSinkMetrics() {
+        Map<String, Object> result = new HashMap<>();
+        
+        try {
+            // Get exchange throughput data to calculate messages coming into HDFS sink
+            Map<String, Object> exchangeData = getExchangeThroughputData();
+            
+            // Messages in = exchange out to HDFS path (roughly half of exchange output)
+            long messagesIn = 0;
+            if (exchangeData != null) {
+                Object totalOut = exchangeData.get("total_publish_out");
+                if (totalOut instanceof Number) {
+                    // Assume roughly half goes to HDFS, half to processor
+                    messagesIn = ((Number) totalOut).longValue() / 2;
+                }
+            }
+            
+            // Files written = estimate based on messages received (assume batching)
+            // Assuming batch size of ~1000 messages per file
+            long filesWritten = messagesIn / 1000;
+            if (messagesIn > 0 && filesWritten == 0) {
+                filesWritten = 1; // At least one file if there are messages
+            }
+            
+            result.put("messages_in", messagesIn);
+            result.put("files_written", filesWritten);
+            result.put("status", "healthy");
+            result.put("timestamp", System.currentTimeMillis());
+            
+            log.debug("HDFS Sink metrics - Messages in: {}, Files written: {}", messagesIn, filesWritten);
+            
+        } catch (Exception e) {
+            log.error("Failed to get HDFS Sink metrics: {}", e.getMessage());
+            result.put("messages_in", 0);
+            result.put("files_written", 0);
             result.put("status", "error");
             result.put("error", e.getMessage());
             result.put("timestamp", System.currentTimeMillis());
@@ -292,20 +348,13 @@ public class TelemematicsExchangeMetricsService {
      */
     private Map<String, Object> getExchangeThroughputData() {
         try {
-            String exchangeUrl = managementApiUrl + "/exchanges/" + vhost + "/" + exchangeName;
-            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                exchangeUrl, 
-                HttpMethod.GET, 
-                httpEntity, 
-                (Class<Map<String, Object>>) (Class<?>) Map.class
-            );
-            
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                return response.getBody();
-            }
+            // Use the existing exchange metrics service to get throughput data
+            Map<String, Object> throughputStats = exchangeMetricsService.getExchangeThroughputStats();
+            log.debug("Retrieved exchange throughput data: {}", throughputStats);
+            return throughputStats;
             
         } catch (Exception e) {
-            log.debug("Failed to get exchange throughput data: {}", e.getMessage());
+            log.error("Failed to get exchange throughput data: {}", e.getMessage());
         }
         
         return null;

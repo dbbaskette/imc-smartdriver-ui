@@ -8,10 +8,14 @@ import com.insurancemegacorp.monitoring.service.ComponentHealthService;
 import com.insurancemegacorp.monitoring.service.ServiceDiscoveryHealthService;
 import com.insurancemegacorp.monitoring.service.TelemetryGeneratorMetricsService;
 import com.insurancemegacorp.monitoring.service.TelemematicsExchangeMetricsService;
+import com.insurancemegacorp.monitoring.service.TelemetryProcessorMetricsService;
+import com.insurancemegacorp.monitoring.service.VehicleEventsJdbcSinkService;
+import com.insurancemegacorp.monitoring.service.MetricsBaselineService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -36,6 +40,15 @@ public class MetricsController {
     
     @Autowired
     private TelemematicsExchangeMetricsService telemematicsExchangeMetricsService;
+    
+    @Autowired
+    private TelemetryProcessorMetricsService telemetryProcessorMetricsService;
+    
+    @Autowired
+    private VehicleEventsJdbcSinkService vehicleEventsJdbcSinkService;
+    
+    @Autowired
+    private MetricsBaselineService metricsBaselineService;
 
     public MetricsController(MetricsCollectorService metricsCollectorService, 
                            RabbitMetricsService rabbitMetricsService,
@@ -87,8 +100,9 @@ public class MetricsController {
 
     @GetMapping("/rabbitmq/exchange/throughput")
     public ResponseEntity<Map<String, Object>> getExchangeThroughput() {
-        Map<String, Object> throughputStats = exchangeMetricsService.getExchangeThroughputStats();
-        return ResponseEntity.ok(throughputStats);
+        Map<String, Object> rawMetrics = exchangeMetricsService.getExchangeThroughputStats();
+        Map<String, Object> adjustedMetrics = metricsBaselineService.getAdjustedMetrics("exchange", rawMetrics);
+        return ResponseEntity.ok(adjustedMetrics);
     }
 
     @GetMapping("/components/health")
@@ -151,8 +165,9 @@ public class MetricsController {
     
     @GetMapping("/telemetry/generator/metrics")
     public ResponseEntity<Map<String, Object>> getTelemetryGeneratorMetrics() {
-        Map<String, Object> metrics = telemetryGeneratorMetricsService.getPublishingMetrics();
-        return ResponseEntity.ok(metrics);
+        Map<String, Object> rawMetrics = telemetryGeneratorMetricsService.getPublishingMetrics();
+        Map<String, Object> adjustedMetrics = metricsBaselineService.getAdjustedMetrics("telemetry_generator", rawMetrics);
+        return ResponseEntity.ok(adjustedMetrics);
     }
     
     @GetMapping("/telemetry/generator/health")
@@ -187,8 +202,35 @@ public class MetricsController {
     
     @GetMapping("/events-processor/metrics")
     public ResponseEntity<Map<String, Object>> getEventsProcessorMetrics() {
-        Map<String, Object> processorMetrics = telemematicsExchangeMetricsService.getEventsProcessorMetrics();
-        return ResponseEntity.ok(processorMetrics);
+        Map<String, Object> rawMetrics = telemetryProcessorMetricsService.getProcessorMetrics();
+        Map<String, Object> adjustedMetrics = metricsBaselineService.getAdjustedMetrics("processor", rawMetrics);
+        return ResponseEntity.ok(adjustedMetrics);
+    }
+    
+    @GetMapping("/events-processor/health")
+    public ResponseEntity<Map<String, Object>> getEventsProcessorHealth() {
+        Map<String, Object> health = telemetryProcessorMetricsService.getHealthStatus();
+        return ResponseEntity.ok(health);
+    }
+    
+    @GetMapping("/hdfs-sink/metrics")
+    public ResponseEntity<Map<String, Object>> getHdfsSinkMetrics() {
+        Map<String, Object> rawMetrics = telemematicsExchangeMetricsService.getHdfsSinkMetrics();
+        Map<String, Object> adjustedMetrics = metricsBaselineService.getAdjustedMetrics("hdfs_sink", rawMetrics);
+        return ResponseEntity.ok(adjustedMetrics);
+    }
+    
+    @GetMapping("/jdbc-sink/metrics")
+    public ResponseEntity<Map<String, Object>> getJdbcSinkMetrics() {
+        Map<String, Object> rawMetrics = vehicleEventsJdbcSinkService.getJdbcSinkMetrics();
+        Map<String, Object> adjustedMetrics = metricsBaselineService.getAdjustedMetrics("jdbc_sink", rawMetrics);
+        return ResponseEntity.ok(adjustedMetrics);
+    }
+    
+    @GetMapping("/jdbc-sink/health")
+    public ResponseEntity<Map<String, Object>> getJdbcSinkHealth() {
+        Map<String, Object> health = vehicleEventsJdbcSinkService.getHealthStatus();
+        return ResponseEntity.ok(health);
     }
     
     @GetMapping("/debug/telemetry/raw")
@@ -200,5 +242,88 @@ public class MetricsController {
         } catch (Exception e) {
             return ResponseEntity.ok("Error fetching telemetry metrics: " + e.getMessage());
         }
+    }
+    
+    @GetMapping("/debug/jdbc/raw")
+    public ResponseEntity<String> getDebugJdbcRaw() {
+        try {
+            // This endpoint will help debug what's actually being received from JDBC sink
+            Map<String, Object> metrics = vehicleEventsJdbcSinkService.getJdbcSinkMetrics();
+            return ResponseEntity.ok("Debug JDBC sink metrics: " + metrics.toString());
+        } catch (Exception e) {
+            return ResponseEntity.ok("Error fetching JDBC sink metrics: " + e.getMessage());
+        }
+    }
+    
+    @GetMapping("/debug/jdbc/prometheus")
+    public ResponseEntity<String> getDebugJdbcPrometheus() {
+        try {
+            // This endpoint will show raw Prometheus metrics from JDBC sink
+            String rawMetrics = vehicleEventsJdbcSinkService.getRawPrometheusMetrics();
+            return ResponseEntity.ok(rawMetrics);
+        } catch (Exception e) {
+            return ResponseEntity.ok("Error fetching JDBC sink Prometheus metrics: " + e.getMessage());
+        }
+    }
+    
+    @PostMapping("/metrics/reset")
+    public ResponseEntity<Map<String, Object>> resetMetrics() {
+        try {
+            metricsBaselineService.captureBaselines();
+            
+            Map<String, Object> response = Map.of(
+                "status", "success",
+                "message", "Metrics have been reset - counters will now show values relative to this baseline",
+                "reset_timestamp", System.currentTimeMillis(),
+                "reset_status", metricsBaselineService.getResetStatus()
+            );
+            
+            log.info("Metrics reset requested and completed");
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            log.error("Failed to reset metrics: {}", e.getMessage());
+            
+            Map<String, Object> response = Map.of(
+                "status", "error",
+                "message", "Failed to reset metrics: " + e.getMessage(),
+                "timestamp", System.currentTimeMillis()
+            );
+            
+            return ResponseEntity.ok(response);
+        }
+    }
+    
+    @PostMapping("/metrics/clear-reset")
+    public ResponseEntity<Map<String, Object>> clearReset() {
+        try {
+            metricsBaselineService.clearBaselines();
+            
+            Map<String, Object> response = Map.of(
+                "status", "success",
+                "message", "Reset cleared - metrics will now show original raw values",
+                "timestamp", System.currentTimeMillis()
+            );
+            
+            log.info("Metrics reset cleared");
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            log.error("Failed to clear reset: {}", e.getMessage());
+            
+            Map<String, Object> response = Map.of(
+                "status", "error",
+                "message", "Failed to clear reset: " + e.getMessage(),
+                "timestamp", System.currentTimeMillis()
+            );
+            
+            return ResponseEntity.ok(response);
+        }
+    }
+    
+    @GetMapping("/metrics/reset-status")
+    public ResponseEntity<Map<String, Object>> getResetStatus() {
+        Map<String, Object> status = metricsBaselineService.getResetStatus();
+        return ResponseEntity.ok(status);
     }
 }

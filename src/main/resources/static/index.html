@@ -106,12 +106,23 @@
             stroke-dasharray: 5 5;
             fill: none;
         }
+        .path-external-table {
+            stroke: #8B5CF6; /* Purple 500 */
+            stroke-width: 2;
+            stroke-dasharray: 10 5;
+            fill: none;
+            opacity: 0.8;
+        }
         .data-packet {
             fill: #34D399; /* Emerald 400 */
             stroke: #F9FAFB;
             stroke-width: 1.5;
             r: 7;
             filter: drop-shadow(0 0 5px #34D399);
+        }
+        .pxf-query {
+            filter: drop-shadow(0 0 8px #4A90E2);
+            opacity: 0.95;
         }
         .queue-count {
             font-size: 24px;
@@ -215,16 +226,43 @@
                     <p><strong>HDFS Files:</strong> 892</p>
                     <p><strong>Database Rows:</strong> 45k</p>
                     
-                    <h4 style="color: #E5E7EB; margin: 20px 0 10px 0; font-size: 1rem;">Component Health</h4>
-                    <div style="margin: 5px 0;"><span id="health-status-generator">🔴</span> Telemetry Generator</div>
+                    <div style="margin: 20px 0; border-top: 1px solid #374151; padding-top: 15px;">
+                        <button id="resetMetricsBtn" onclick="resetMetrics()" style="
+                            background-color: #DC2626; 
+                            color: white; 
+                            border: none; 
+                            padding: 8px 16px; 
+                            border-radius: 6px; 
+                            cursor: pointer; 
+                            font-size: 12px;
+                            margin-right: 8px;
+                        ">Reset Counters</button>
+                        
+                        <button id="clearResetBtn" onclick="clearReset()" style="
+                            background-color: #6B7280; 
+                            color: white; 
+                            border: none; 
+                            padding: 8px 16px; 
+                            border-radius: 6px; 
+                            cursor: pointer; 
+                            font-size: 12px;
+                            display: none;
+                        ">Clear Reset</button>
+                        
+                        <div id="resetStatus" style="margin-top: 8px; font-size: 11px; color: #9CA3AF;"></div>
+                    </div>
                     
-                    <div style="margin: 5px 0;"><span id="health-status-exchange">🔴</span> RabbitMQ Exchange</div>
-                    <div style="margin: 5px 0;"><span id="health-status-hdfs">🔴</span> HDFS Sink</div>
-                    <div style="margin: 5px 0;">🟢 Hadoop HDFS</div>
-                    <div style="margin: 5px 0;"><span id="health-status-processor">🔴</span> Events Processor</div>
-                    <div style="margin: 5px 0;"><span id="health-status-jdbc">🔴</span> JDBC Processor</div>
-                    <div style="margin: 5px 0;">🟢 Vehicle Events Queue</div>
-                    <div style="margin: 5px 0;">🟢 Greenplum Database</div>
+                    <h4 style="color: #E5E7EB; margin: 20px 0 10px 0; font-size: 1rem;">Component Health</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px;">
+                        <div style="margin: 2px 0;"><span id="health-status-generator">🔴</span> Telemetry Generator</div>
+                        <div style="margin: 2px 0;"><span id="health-status-exchange">🔴</span> RabbitMQ Exchange</div>
+                        <div style="margin: 2px 0;"><span id="health-status-hdfs">🔴</span> HDFS Sink</div>
+                        <div style="margin: 2px 0;">🟢 Hadoop HDFS</div>
+                        <div style="margin: 2px 0;"><span id="health-status-processor">🔴</span> Events Processor</div>
+                        <div style="margin: 2px 0;"><span id="health-status-jdbc">🔴</span> JDBC Sink</div>
+                        <div style="margin: 2px 0;">🟢 Vehicle Events Queue</div>
+                        <div style="margin: 2px 0;">🟢 Greenplum Database</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -237,10 +275,11 @@
             exchange:   { x: 350, y: 250, label: 'telematics_exchange', svg: '/assets/RabbitMQ.svg', description: 'RabbitMQ fanout exchange' },
             hdfs:       { x: 600, y: 80, label: 'HDFS Sink', icon: '🗄️', description: 'All data → Parquet' },
             hadoop:     { x: 850, y: 80, label: 'Hadoop HDFS', svg: '/assets/hadoop.svg', description: 'File storage' },
-            processor:  { x: 600, y: 350, label: 'Events Processor', icon: '⚙️', description: 'Accident detection' },
-            database:   { x: 850, y: 250, label: 'JDBC Processor', icon: '🗃️', description: 'Database processor' },
-            events:     { x: 850, y: 400, label: 'vehicle_events', svg: '/assets/RabbitMQ.svg', description: 'RabbitMQ queue' },
-            greenplum:  { x: 1100, y: 250, label: 'Greenplum', svg: '/assets/tanzu.png', description: 'Tanzu Greenplum Database' }
+            processor:  { x: 600, y: 250, label: 'Events Processor', icon: '⚙️', description: 'Processes telematics data for accident detection' },
+            events:     { x: 850, y: 250, label: 'vehicle_events', svg: '/assets/RabbitMQ.svg', description: 'Vehicle events queue from processor' },
+            database:   { x: 1100, y: 200, label: 'JDBC Sink', icon: '🗃️', description: 'Persists events to database' },
+            logsink:    { x: 1100, y: 380, label: 'Log Sink', icon: '📝', description: 'Outputs events to log files' },
+            greenplum:  { x: 1300, y: 200, label: 'Greenplum', svg: '/assets/tanzu.png', description: 'Tanzu Greenplum Database' }
         };
 
         const paths = [
@@ -248,10 +287,11 @@
             { source: 'exchange', target: 'hdfs' },
             { source: 'hdfs', target: 'hadoop' },
             { source: 'exchange', target: 'processor' },
-            { source: 'processor', target: 'database' },
             { source: 'processor', target: 'events' },
-            { source: 'hadoop', target: 'greenplum' },
-            { source: 'database', target: 'greenplum' }
+            { source: 'events', target: 'database' },
+            { source: 'events', target: 'logsink' },
+            { source: 'database', target: 'greenplum' },
+            { source: 'hadoop', target: 'greenplum', type: 'external_table' }
         ];
 
         // --- D3 Setup ---
@@ -261,7 +301,7 @@
 
         // Adjust positions based on actual SVG width
         Object.values(components).forEach(c => {
-            c.x = (c.x / 1200) * width;
+            c.x = (c.x / 1400) * width; // Layout spans 1400px with components ending at x:1300
         });
 
         // --- Render Components and Paths ---
@@ -270,9 +310,22 @@
         paths.forEach(p => {
             const source = components[p.source];
             const target = components[p.target];
+            const pathClass = p.type === 'external_table' ? 'path-external-table' : 'path';
+            
+            let pathData;
+            if (p.type === 'external_table') {
+                // Route external table connection above JDBC Sink to avoid overlap
+                const midX = (source.x + target.x) / 2;
+                const controlY = Math.min(source.y, target.y) - 60; // Simpler arc 60px above
+                pathData = `M${source.x},${source.y} Q${midX},${controlY} ${target.x},${target.y}`;
+            } else {
+                // Standard curve for regular paths  
+                pathData = `M${source.x},${source.y} C${(source.x + target.x) / 2},${source.y} ${(source.x + target.x) / 2},${target.y} ${target.x},${target.y}`;
+            }
+            
             svg.append("path")
-                .attr("class", "path")
-                .attr("d", `M${source.x},${source.y} C${(source.x + target.x) / 2},${source.y} ${(source.x + target.x) / 2},${target.y} ${target.x},${target.y}`);
+                .attr("class", pathClass)
+                .attr("d", pathData);
         });
 
         // Draw components
@@ -307,13 +360,34 @@
             }
         });
 
-        componentGroups.append("text")
-            .attr("class", "component-label")
-            .attr("y", 25)
-            .text(d => d[1].label);
+        componentGroups.each(function(d, i) {
+            const group = d3.select(this);
+            const label = d[1].label;
+            
+            if (d[0] === 'generator') {
+                // Stack "Telemetry" over "Generator" for space saving
+                group.append("text")
+                    .attr("class", "component-label")
+                    .attr("y", 20)
+                    .attr("text-anchor", "middle")
+                    .text("Telemetry");
+                group.append("text")
+                    .attr("class", "component-label")
+                    .attr("y", 32)
+                    .attr("text-anchor", "middle")
+                    .text("Generator");
+            } else {
+                // Single line label for other components
+                group.append("text")
+                    .attr("class", "component-label")
+                    .attr("y", 25)
+                    .attr("text-anchor", "middle")
+                    .text(label);
+            }
+        });
 
         // Add health indicators for components with actuator endpoints
-        const healthComponents = ['generator', 'exchange', 'processor', 'hdfs', 'database']; // database maps to jdbc
+        const healthComponents = ['generator', 'exchange', 'processor', 'hdfs', 'database', 'logsink', 'events']; // database maps to jdbc, events for vehicle_events queue
         componentGroups.each(function(d) {
             const componentId = d[0];
             if (healthComponents.includes(componentId)) {
@@ -322,7 +396,7 @@
                     .attr("class", "health-indicator unknown")
                     .attr("id", `health-${componentId}`)
                     .attr("cx", 0)
-                    .attr("cy", -70); // Position above the icon
+                    .attr("cy", -75); // Consistent position above all icons
             }
         });
 
@@ -335,7 +409,7 @@
             group.append("rect")
                 .attr("class", "data-grid-bg")
                 .attr("x", -60)
-                .attr("y", 35)
+                .attr("y", 40)
                 .attr("width", 120)
                 .attr("height", 40)
                 .attr("rx", 4);
@@ -344,7 +418,7 @@
             group.append("rect")
                 .attr("class", "data-grid")
                 .attr("x", -60)
-                .attr("y", 35)
+                .attr("y", 40)
                 .attr("width", 120)
                 .attr("height", 40)
                 .attr("rx", 4);
@@ -356,16 +430,16 @@
             gridData.forEach((row, rowIndex) => {
                 row.forEach((cell, colIndex) => {
                     const x = -60 + (colIndex * cellWidth);
-                    const y = 35 + (rowIndex * cellHeight);
+                    const y = 40 + (rowIndex * cellHeight);
                     
                     // Cell separator lines
                     if (colIndex > 0) {
                         group.append("line")
                             .attr("class", "data-grid")
                             .attr("x1", x)
-                            .attr("y1", 35)
+                            .attr("y1", 40)
                             .attr("x2", x)
-                            .attr("y2", 75);
+                            .attr("y2", 80);
                     }
                     if (rowIndex > 0) {
                         group.append("line")
@@ -408,6 +482,23 @@
                 // Add clickable indicator for exchange components
                 if ((d[0] === 'exchange' || d[0] === 'events') && rabbitMQDashboardUrl) {
                     tooltipContent += `<br/><br/><em>Click to open RabbitMQ dashboard</em>`;
+                }
+                
+                // Add queue information for vehicle_events
+                if (d[0] === 'events' && vehicleEventsMetrics) {
+                    tooltipContent += `<br/><br/><strong>Vehicle Events Queue:</strong>`;
+                    const queueDepth = vehicleEventsMetrics.messages_in_queue || 0;
+                    const totalMessages = vehicleEventsMetrics.total_messages || 0;
+                    const publishRate = vehicleEventsMetrics.publish_rate || 0;
+                    const deliveryRate = vehicleEventsMetrics.delivery_rate || 0;
+                    
+                    const totalFormatted = totalMessages > 1000 ? (totalMessages/1000).toFixed(1) + 'k' : totalMessages;
+                    
+                    tooltipContent += `<br/>• Queue Depth: ${queueDepth} messages`;
+                    tooltipContent += `<br/>• Total Published: ${totalFormatted}`;
+                    tooltipContent += `<br/>• Publish Rate: ${publishRate.toFixed(1)}/s`;
+                    tooltipContent += `<br/>• Delivery Rate: ${deliveryRate.toFixed(1)}/s`;
+                    tooltipContent += `<br/>• Status: ${queueDepth > 0 ? 'Active' : 'Idle'}`;
                 }
                 
                 // Add queue information for exchange
@@ -469,32 +560,36 @@
         function generateMockData(componentType) {
             const mockData = {
                 generator: [
-                    [{label: ' Msgs ', value: ' Msgs '}, {label: '', value: '0'}],
-                    [{label: ' Rate ', value: ' Rate '}, {label: '', value: '0.0/sec'}]
+                    [{label: ' Msgs ', value: ''}, {label: '', value: '0'}],
+                    [{label: ' Rate ', value: ''}, {label: '', value: '0.0/sec'}]
                 ],
                 exchange: [
-                    [{label: ' In ', value: '0'}, {label: '', value: '0.0/s'}],
-                    [{label: ' Out ', value: '0'}, {label: '', value: '0.0/s'}]
+                    [{label: ' In ', value: ''}, {label: '', value: '0.0/s'}],
+                    [{label: ' Out ', value: ''}, {label: '', value: '0.0/s'}]
                 ],
                 hdfs: [
-                    [{label: 'Proc', value: '1.2k'}, {label: 'Files', value: '892'}],
-                    [{label: 'Writers', value: '3'}, {label: 'Batch', value: '1000'}]
+                    [{label: ' In ', value: ''}, {label: '', value: '0'}],
+                    [{label: ' Files ', value: ''}, {label: '', value: '0'}]
                 ],
                 hadoop: [
                     [{label: 'Files', value: '892'}, {label: 'Size', value: '2.1GB'}],
                     [{label: 'Blocks', value: '1.8k'}, {label: 'Nodes', value: '3'}]
                 ],
                 processor: [
-                    [{label: ' In ', value: '0'}, {label: '', value: '0'}],
-                    [{label: ' Accidents ', value: '0'}, {label: '', value: '0'}]
+                    [{label: ' In ', value: ''}, {label: '', value: '0'}],
+                    [{label: ' Events ', value: ''}, {label: '', value: '0'}]
                 ],
                 events: [
-                    [{label: ' Queue ', value: '0'}, {label: '', value: '0'}],
-                    [{label: ' Total ', value: '0'}, {label: '', value: '0'}]
+                    [{label: ' Queue ', value: ''}, {label: '', value: '0'}],
+                    [{label: ' Total ', value: ''}, {label: '', value: '0'}]
                 ],
                 database: [
-                    [{label: 'Proc', value: '1.2k'}, {label: 'Rows', value: '45k'}],
-                    [{label: 'Batch', value: '100'}, {label: 'Rate', value: '98%'}]
+                    [{label: 'DB Inserts', value: ''}, {label: '', value: '0'}],
+                    [{label: ' Errors ', value: ''}, {label: '', value: '0'}]
+                ],
+                logsink: [
+                    [{label: ' Val1 ', value: ''}, {label: '', value: '123'}],
+                    [{label: ' Val2 ', value: ''}, {label: '', value: '456'}]
                 ],
                 greenplum: [
                     [{label: 'Tables', value: '12'}, {label: 'Rows', value: '2.1M'}],
@@ -519,11 +614,19 @@
             processor: true, 
             hdfs: true,
             jdbc: true,
-            exchange: true  // Add exchange health tracking
+            logsink: true,   // Add log sink health tracking  
+            exchange: true,  // Add exchange health tracking
+            events: true     // Add events (vehicle_events queue) health tracking
         };
 
         function animatePacket(pathId) {
             const pathDef = paths[pathId];
+            
+            // Use special PXF animation for external table connections
+            if (pathDef.type === 'external_table') {
+                animatePXFQuery(pathId);
+                return;
+            }
             
             // Check if both source and target components are healthy
             const sourceHealthy = isComponentHealthy(pathDef.source);
@@ -568,6 +671,62 @@
                 .remove();
         }
         
+        // Special animation for PXF external table queries
+        function animatePXFQuery(pathId) {
+            const pathDef = paths[pathId];
+            
+            // Check if both source and target components are healthy
+            const sourceHealthy = isComponentHealthy(pathDef.source);
+            const targetHealthy = isComponentHealthy(pathDef.target);
+            
+            if (!sourceHealthy || !targetHealthy) {
+                // Skip animation if either component is unhealthy
+                return;
+            }
+            
+            const pathElement = svg.selectAll(".path-external-table").nodes()[0]; // External table path
+            if (!pathElement) return;
+            
+            const pathLength = pathElement.getTotalLength();
+            
+            // Create a group for the PXF icon
+            const pxfGroup = svg.append("g")
+                .attr("class", "pxf-query")
+                .attr("transform", `translate(${components[pathDef.source].x}, ${components[pathDef.source].y})`);
+            
+            // Add small Greenplum-style background (hexagon-like shape)
+            pxfGroup.append("circle")
+                .attr("r", 12)
+                .attr("fill", "#4A90E2") // Greenplum blue
+                .attr("stroke", "#2E5C8A")
+                .attr("stroke-width", 1.5)
+                .attr("opacity", 0.9);
+            
+            // Add PXF text
+            pxfGroup.append("text")
+                .attr("text-anchor", "middle")
+                .attr("dominant-baseline", "middle")
+                .attr("font-family", "monospace")
+                .attr("font-size", "8px")
+                .attr("font-weight", "bold")
+                .attr("fill", "white")
+                .text("PXF");
+            
+            // Animate along the path
+            pxfGroup.transition()
+                .duration(4000 + Math.random() * 2000) // Slower than regular packets (SQL queries take time)
+                .ease(d3.easeCubicInOut)
+                .attrTween("transform", function(d) {
+                    return function(t) {
+                        const p = pathElement.getPointAtLength(t * pathLength);
+                        return `translate(${p.x}, ${p.y})`;
+                    }
+                })
+                .on("end", function() {
+                    d3.select(this).remove();
+                });
+        }
+        
         function updateDriverScore(score = null) {
             const newScore = score !== null ? Math.round(score) : Math.floor(75 + Math.random() * 25);
             // scoreValueText is not defined, so we'll skip this for now
@@ -605,6 +764,8 @@
         // Global variables for component metrics
         let vehicleEventsMetrics = null;
         let eventsProcessorMetrics = null;
+        let hdfsSinkMetrics = null;
+        let jdbcSinkMetrics = null;
         let rabbitMQDashboardUrl = null;
 
         // Fetch exchange throughput data
@@ -716,13 +877,13 @@
                 const formattedMessages = totalMessages > 1000 ? (totalMessages/1000).toFixed(1) + 'k' : totalMessages;
                 const formattedRate = messageRatePerSec.toFixed(1) + '/sec';
                 
-                // Row 1: Label "Msgs" and Value
-                generatorGridValues[0].textContent = ' Msgs '; // Label with spacing
-                generatorGridValues[1].textContent = formattedMessages; // Value
+                // Row 1: Keep label as is, update value only
+                // generatorGridValues[0] is already " Msgs " from mock data
+                generatorGridValues[1].textContent = formattedMessages; // Value only
                 
-                // Row 2: Label "Rate" and Value  
-                generatorGridValues[2].textContent = ' Rate '; // Label with spacing
-                generatorGridValues[3].textContent = formattedRate; // Value
+                // Row 2: Keep label as is, update value only
+                // generatorGridValues[2] is already " Rate " from mock data
+                generatorGridValues[3].textContent = formattedRate; // Value only
                 
                 console.log('Updated generator grid:', formattedMessages, formattedRate);
             } else {
@@ -781,12 +942,12 @@
                 const formattedRateIn = rateIn.toFixed(1) + '/s';
                 const formattedRateOut = rateOut.toFixed(1) + '/s';
                 
-                // Row 1: Label " In " and Messages In Value
-                exchangeGridValues[0].textContent = ' In ';
+                // Row 1: Keep label as is, update value only
+                // exchangeGridValues[0] is already " In " from mock data
                 exchangeGridValues[1].textContent = formattedIn;
                 
-                // Row 2: Label " Out " and Messages Out Value  
-                exchangeGridValues[2].textContent = ' Out ';
+                // Row 2: Keep label as is, update value only
+                // exchangeGridValues[2] is already " Out " from mock data
                 exchangeGridValues[3].textContent = formattedOut;
                 
                 console.log('Updated exchange grid:', formattedIn, 'in,', formattedOut, 'out');
@@ -827,6 +988,42 @@
                 return data;
             } catch (error) {
                 console.error('Failed to fetch events processor metrics:', error);
+                return null;
+            }
+        }
+
+        // Fetch HDFS Sink metrics
+        async function fetchHdfsSinkMetrics() {
+            try {
+                const response = await fetch('/api/hdfs-sink/metrics');
+                const data = await response.json();
+                hdfsSinkMetrics = data;
+                
+                // Update HDFS Sink component grid
+                updateHdfsSinkGrid(data);
+                
+                console.log('HDFS Sink metrics updated:', data);
+                return data;
+            } catch (error) {
+                console.error('Failed to fetch HDFS Sink metrics:', error);
+                return null;
+            }
+        }
+
+        // Fetch JDBC Sink metrics
+        async function fetchJdbcSinkMetrics() {
+            try {
+                const response = await fetch('/api/jdbc-sink/metrics');
+                const data = await response.json();
+                jdbcSinkMetrics = data;
+                
+                // Update JDBC Sink component grid
+                updateJdbcSinkGrid(data);
+                
+                console.log('JDBC Sink metrics updated:', data);
+                return data;
+            } catch (error) {
+                console.error('Failed to fetch JDBC Sink metrics:', error);
                 return null;
             }
         }
@@ -903,8 +1100,9 @@
                 const data = await response.json();
                 rabbitMQHealth = data;
                 
-                // Update exchange health in component health object
+                // Update exchange and events health in component health object (both are RabbitMQ components)
                 componentHealth.exchange = data.healthy;
+                componentHealth.events = data.healthy; // vehicle_events queue shares same RabbitMQ health
                 updateHealthIndicators();
                 
                 console.log('RabbitMQ health updated:', data);
@@ -912,6 +1110,7 @@
             } catch (error) {
                 console.error('Failed to fetch RabbitMQ health:', error);
                 componentHealth.exchange = false;
+                componentHealth.events = false; // Both RabbitMQ components unhealthy
                 updateHealthIndicators();
                 return null;
             }
@@ -944,12 +1143,12 @@
                 const formattedQueue = queueDepth > 1000 ? (queueDepth/1000).toFixed(1) + 'k' : queueDepth;
                 const formattedTotal = totalMessages > 1000 ? (totalMessages/1000).toFixed(1) + 'k' : totalMessages;
                 
-                // Row 1: Label " Queue " and Queue Depth Value
-                eventsGridValues[0].textContent = ' Queue ';
+                // Row 1: Keep label as is, update value only
+                // eventsGridValues[0] is already " Queue " from mock data
                 eventsGridValues[1].textContent = formattedQueue;
                 
-                // Row 2: Label " Total " and Total Messages Value  
-                eventsGridValues[2].textContent = ' Total ';
+                // Row 2: Keep label as is, update value only
+                // eventsGridValues[2] is already " Total " from mock data
                 eventsGridValues[3].textContent = formattedTotal;
                 
                 console.log('Updated events grid:', formattedQueue, 'queue,', formattedTotal, 'total');
@@ -963,9 +1162,10 @@
             if (!data || data.status === 'error') return;
             
             const messagesIn = data.messages_in || 0;
-            const accidentsDetected = data.accidents_detected || 0;
+            const messagesOut = data.messages_out || 0;
+            const eventsCaptured = data.events_captured || 0;
             
-            console.log('Updating events processor grid with in:', messagesIn, 'accidents:', accidentsDetected);
+            console.log('Updating events processor grid with in:', messagesIn, 'out:', messagesOut, 'events:', eventsCaptured);
             
             // Find events processor grid (it's the "processor" component - around position 5)
             let processorGridValues = document.querySelectorAll('g.component:nth-of-type(5) .data-grid-value');
@@ -983,19 +1183,104 @@
             if (processorGridValues.length >= 4) {
                 // Format values
                 const formattedIn = messagesIn > 1000 ? (messagesIn/1000).toFixed(1) + 'k' : messagesIn;
-                const formattedAccidents = accidentsDetected > 1000 ? (accidentsDetected/1000).toFixed(1) + 'k' : accidentsDetected;
+                const formattedOut = messagesOut > 1000 ? (messagesOut/1000).toFixed(1) + 'k' : messagesOut;
+                const formattedEvents = eventsCaptured > 1000 ? (eventsCaptured/1000).toFixed(1) + 'k' : eventsCaptured;
                 
-                // Row 1: Label " In " and Messages In Value
-                processorGridValues[0].textContent = ' In ';
+                // Row 1: Keep label as is, update value only
+                // processorGridValues[0] is already " In " from mock data
                 processorGridValues[1].textContent = formattedIn;
                 
-                // Row 2: Label " Accidents " and Accidents Detected Value  
-                processorGridValues[2].textContent = ' Accidents ';
-                processorGridValues[3].textContent = formattedAccidents;
+                // Row 2: Keep label as is, update value only
+                // processorGridValues[2] is already " Events " from mock data
+                processorGridValues[3].textContent = formattedEvents;
                 
-                console.log('Updated processor grid:', formattedIn, 'in,', formattedAccidents, 'accidents');
+                console.log('Updated processor grid:', formattedIn, 'in,', formattedOut, 'out,', formattedEvents, 'events');
             } else {
                 console.warn('Could not find events processor grid elements. Found:', processorGridValues.length, 'elements');
+            }
+        }
+
+        // Update HDFS Sink component grid
+        function updateHdfsSinkGrid(data) {
+            if (!data || data.status === 'error') return;
+            
+            const messagesIn = data.messages_in || 0;
+            const filesWritten = data.files_written || 0;
+            
+            console.log('Updating HDFS Sink grid with in:', messagesIn, 'files:', filesWritten);
+            
+            // Find HDFS Sink grid (it's the "hdfs" component - around position 3)
+            let hdfsGridValues = document.querySelectorAll('g.component:nth-of-type(3) .data-grid-value');
+            console.log('Found HDFS grid elements (approach 1):', hdfsGridValues.length);
+            
+            if (hdfsGridValues.length === 0) {
+                // Try finding by approximate position
+                const allGridValues = document.querySelectorAll('.data-grid-value');
+                if (allGridValues.length >= 12) { // 3 components * 4 values each
+                    hdfsGridValues = Array.from(allGridValues).slice(8, 12); // 3rd component
+                    console.log('Using elements 8-12 as HDFS grid');
+                }
+            }
+            
+            if (hdfsGridValues.length >= 4) {
+                // Format values
+                const formattedIn = messagesIn > 1000 ? (messagesIn/1000).toFixed(1) + 'k' : messagesIn;
+                const formattedFiles = filesWritten > 1000 ? (filesWritten/1000).toFixed(1) + 'k' : filesWritten;
+                
+                // Row 1: Keep label as is, update value only
+                // hdfsGridValues[0] is already " In " from mock data
+                hdfsGridValues[1].textContent = formattedIn;
+                
+                // Row 2: Keep label as is, update value only
+                // hdfsGridValues[2] is already " Files " from mock data
+                hdfsGridValues[3].textContent = formattedFiles;
+                
+                console.log('Updated HDFS grid:', formattedIn, 'in,', formattedFiles, 'files');
+            } else {
+                console.warn('Could not find HDFS Sink grid elements. Found:', hdfsGridValues.length, 'elements');
+            }
+        }
+
+        // Update JDBC Sink component grid (database component)
+        function updateJdbcSinkGrid(data) {
+            if (!data || data.status === 'error') return;
+            
+            // Use the correct metric names from IMC JDBC Consumer
+            const dbInserts = data.jdbc_consumer_messages_processed_total || 0;
+            const messagesConsumed = data.rabbitmq_consumed_total || 0;
+            const errors = Math.max(0, messagesConsumed - dbInserts); // Messages consumed but not processed = errors
+            
+            console.log('Updating JDBC Sink grid with DB inserts:', dbInserts, 'errors:', errors, '(consumed:', messagesConsumed, ')');
+            
+            // Find JDBC Sink grid (it's the "database" component - around position 7)
+            let jdbcGridValues = document.querySelectorAll('g.component:nth-of-type(7) .data-grid-value');
+            console.log('Found JDBC grid elements (approach 1):', jdbcGridValues.length);
+            
+            if (jdbcGridValues.length === 0) {
+                // Try finding by approximate position
+                const allGridValues = document.querySelectorAll('.data-grid-value');
+                if (allGridValues.length >= 28) { // 7 components * 4 values each
+                    jdbcGridValues = Array.from(allGridValues).slice(24, 28); // 7th component
+                    console.log('Using elements 24-28 as JDBC grid');
+                }
+            }
+            
+            if (jdbcGridValues.length >= 4) {
+                // Format values
+                const formattedInserts = dbInserts > 1000 ? (dbInserts/1000).toFixed(1) + 'k' : dbInserts;
+                const formattedErrors = errors > 1000 ? (errors/1000).toFixed(1) + 'k' : errors;
+                
+                // Row 1: Keep label as is, update value only
+                // jdbcGridValues[0] is already "DB Inserts" from mock data
+                jdbcGridValues[1].textContent = formattedInserts;
+                
+                // Row 2: Keep label as is, update value only
+                // jdbcGridValues[2] is already " Errors " from mock data
+                jdbcGridValues[3].textContent = formattedErrors;
+                
+                console.log('Updated JDBC grid:', formattedInserts, 'inserts,', formattedErrors, 'errors');
+            } else {
+                console.warn('Could not find JDBC Sink grid elements. Found:', jdbcGridValues.length, 'elements');
             }
         }
 
@@ -1028,7 +1313,7 @@
                 'database': 'jdbc',     // Map database component to jdbc health
                 'exchange': 'exchange', // RabbitMQ exchange - now monitored
                 'hadoop': true,         // Hadoop - always healthy for now  
-                'events': true,         // RabbitMQ queue - always healthy for now
+                'events': 'events',     // RabbitMQ queue - now monitored
                 'greenplum': true       // Greenplum - always healthy for now
             };
             
@@ -1073,6 +1358,9 @@
         
         // Path 7: database → greenplum (processed data)
         setInterval(() => animatePacket(7), 3500);
+        
+        // Path 8: hadoop → greenplum (PXF external table queries) - slower since these are analytical queries
+        setInterval(() => animatePacket(8), 8000 + Math.random() * 4000);
 
         // Fetch metrics from API every 3 seconds
         setInterval(fetchMetrics, 3000);
@@ -1098,6 +1386,12 @@
         // Fetch events processor metrics every 5.5 seconds
         setInterval(fetchEventsProcessorMetrics, 5500);
         
+        // Fetch HDFS Sink metrics every 6.5 seconds
+        setInterval(fetchHdfsSinkMetrics, 6500);
+        
+        // Fetch JDBC Sink metrics every 7.5 seconds
+        setInterval(fetchJdbcSinkMetrics, 7500);
+        
         // Initial metrics fetch
         fetchMetrics();
         fetchExchangeThroughput();
@@ -1107,7 +1401,126 @@
         fetchRabbitMQHealth();
         fetchVehicleEventsMetrics();
         fetchEventsProcessorMetrics();
+        fetchHdfsSinkMetrics();
+        fetchJdbcSinkMetrics();
         fetchRabbitMQDashboardInfo();
+        checkResetStatus();
+        
+        // Check reset status every 30 seconds
+        setInterval(checkResetStatus, 30000);
+
+        // --- Reset Functionality ---
+        
+        async function resetMetrics() {
+            const resetBtn = document.getElementById('resetMetricsBtn');
+            const clearBtn = document.getElementById('clearResetBtn');
+            const statusDiv = document.getElementById('resetStatus');
+            
+            try {
+                resetBtn.disabled = true;
+                resetBtn.textContent = 'Resetting...';
+                statusDiv.textContent = 'Capturing current values as baseline...';
+                
+                const response = await fetch('/api/metrics/reset', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    statusDiv.textContent = '✅ Metrics reset! Counters now show values from this point.';
+                    statusDiv.style.color = '#10B981';
+                    clearBtn.style.display = 'inline-block';
+                    resetBtn.textContent = 'Reset Again';
+                    console.log('Metrics reset successful:', data);
+                } else {
+                    statusDiv.textContent = '❌ Reset failed: ' + data.message;
+                    statusDiv.style.color = '#EF4444';
+                }
+                
+            } catch (error) {
+                console.error('Reset failed:', error);
+                statusDiv.textContent = '❌ Reset failed: ' + error.message;
+                statusDiv.style.color = '#EF4444';
+                resetBtn.textContent = 'Reset Counters';
+            }
+            
+            resetBtn.disabled = false;
+        }
+        
+        async function clearReset() {
+            const resetBtn = document.getElementById('resetMetricsBtn');
+            const clearBtn = document.getElementById('clearResetBtn');
+            const statusDiv = document.getElementById('resetStatus');
+            
+            try {
+                clearBtn.disabled = true;
+                clearBtn.textContent = 'Clearing...';
+                statusDiv.textContent = 'Returning to original metrics...';
+                
+                const response = await fetch('/api/metrics/clear-reset', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    statusDiv.textContent = '✅ Reset cleared! Showing original cumulative metrics.';
+                    statusDiv.style.color = '#10B981';
+                    clearBtn.style.display = 'none';
+                    resetBtn.textContent = 'Reset Counters';
+                    console.log('Reset cleared successfully:', data);
+                } else {
+                    statusDiv.textContent = '❌ Clear failed: ' + data.message;
+                    statusDiv.style.color = '#EF4444';
+                }
+                
+            } catch (error) {
+                console.error('Clear reset failed:', error);
+                statusDiv.textContent = '❌ Clear failed: ' + error.message;
+                statusDiv.style.color = '#EF4444';
+            }
+            
+            clearBtn.disabled = false;
+            clearBtn.textContent = 'Clear Reset';
+        }
+        
+        async function checkResetStatus() {
+            try {
+                const response = await fetch('/api/metrics/reset-status');
+                const status = await response.json();
+                
+                const clearBtn = document.getElementById('clearResetBtn');
+                const statusDiv = document.getElementById('resetStatus');
+                
+                if (status.baselines_captured) {
+                    clearBtn.style.display = 'inline-block';
+                    
+                    if (status.time_since_reset_seconds) {
+                        const timeSince = Math.floor(status.time_since_reset_seconds);
+                        const minutes = Math.floor(timeSince / 60);
+                        const seconds = timeSince % 60;
+                        
+                        if (minutes > 0) {
+                            statusDiv.textContent = `📊 Metrics reset ${minutes}m ${seconds}s ago (${status.baseline_count} baselines)`;
+                        } else {
+                            statusDiv.textContent = `📊 Metrics reset ${seconds}s ago (${status.baseline_count} baselines)`;
+                        }
+                        statusDiv.style.color = '#9CA3AF';
+                    }
+                } else {
+                    clearBtn.style.display = 'none';
+                    if (statusDiv.textContent.includes('📊')) {
+                        statusDiv.textContent = '';
+                    }
+                }
+                
+            } catch (error) {
+                console.debug('Failed to check reset status:', error);
+            }
+        }
 
     </script>
 </body>
