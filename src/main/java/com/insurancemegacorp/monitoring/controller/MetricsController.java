@@ -11,6 +11,7 @@ import com.insurancemegacorp.monitoring.service.TelemematicsExchangeMetricsServi
 import com.insurancemegacorp.monitoring.service.TelemetryProcessorMetricsService;
 import com.insurancemegacorp.monitoring.service.VehicleEventsJdbcSinkService;
 import com.insurancemegacorp.monitoring.service.MetricsBaselineService;
+import com.insurancemegacorp.monitoring.service.GreenplumService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -49,6 +50,9 @@ public class MetricsController {
     
     @Autowired
     private MetricsBaselineService metricsBaselineService;
+    
+    @Autowired
+    private GreenplumService greenplumService;
 
     public MetricsController(MetricsCollectorService metricsCollectorService, 
                            RabbitMetricsService rabbitMetricsService,
@@ -325,5 +329,29 @@ public class MetricsController {
     public ResponseEntity<Map<String, Object>> getResetStatus() {
         Map<String, Object> status = metricsBaselineService.getResetStatus();
         return ResponseEntity.ok(status);
+    }
+    
+    @GetMapping("/greenplum/health")
+    public ResponseEntity<Map<String, Object>> getGreenplumHealth() {
+        Map<String, Object> health = greenplumService.getHealthStatus();
+        return ResponseEntity.ok(health);
+    }
+    
+    @GetMapping("/safe-driver-scoring/fleet-summary")
+    public ResponseEntity<Map<String, Object>> getFleetSafetySummary() {
+        Map<String, Object> summary = greenplumService.getFleetSafetySummary();
+        return ResponseEntity.ok(summary);
+    }
+    
+    @GetMapping("/safe-driver-scoring/top-performers")
+    public ResponseEntity<List<Map<String, Object>>> getTopPerformers() {
+        List<Map<String, Object>> drivers = greenplumService.getTopPerformers();
+        return ResponseEntity.ok(drivers);
+    }
+    
+    @GetMapping("/safe-driver-scoring/high-risk-drivers")
+    public ResponseEntity<List<Map<String, Object>>> getHighRiskDrivers() {
+        List<Map<String, Object>> drivers = greenplumService.getHighRiskDrivers();
+        return ResponseEntity.ok(drivers);
     }
 }

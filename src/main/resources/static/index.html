@@ -124,6 +124,256 @@
             filter: drop-shadow(0 0 8px #4A90E2);
             opacity: 0.95;
         }
+        
+        /* Safe Driver Scoring Panel */
+        .safe-driver-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 95%;
+            max-width: 1200px;
+            max-height: 90vh;
+            background: linear-gradient(135deg, #1F2937 0%, #111827 100%);
+            border: 2px solid #374151;
+            border-radius: 16px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+        
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 30px;
+            border-bottom: 1px solid #374151;
+            background: linear-gradient(90deg, #1F2937 0%, #374151 100%);
+            border-radius: 14px 14px 0 0;
+        }
+        
+        .panel-header h2 {
+            color: #F9FAFB;
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            color: #9CA3AF;
+            font-size: 2rem;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 0;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        
+        .close-btn:hover {
+            background: #374151;
+            color: #F9FAFB;
+        }
+        
+        .panel-content {
+            padding: 30px;
+        }
+        
+        .kpi-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .kpi-card {
+            background: #374151;
+            border: 1px solid #4B5563;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+        
+        .kpi-card.alert {
+            border-color: #EF4444;
+            background: linear-gradient(135deg, #374151 0%, #4B1B1B 100%);
+        }
+        
+        .kpi-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        
+        .kpi-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #F9FAFB;
+            margin-bottom: 5px;
+        }
+        
+        .kpi-label {
+            color: #D1D5DB;
+            font-size: 0.9rem;
+        }
+        
+        .description {
+            background: #374151;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border-left: 4px solid #34D399;
+        }
+        
+        .description p {
+            color: #D1D5DB;
+            margin: 0;
+            line-height: 1.5;
+            font-size: 0.9rem;
+        }
+        
+        .feature-highlights {
+            background: #374151;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .feature-highlights h3 {
+            color: #F9FAFB;
+            margin: 0 0 10px 0;
+            font-size: 1rem;
+        }
+        
+        .feature-highlights ul {
+            color: #D1D5DB;
+            margin: 0;
+            padding-left: 16px;
+        }
+        
+        .feature-highlights li {
+            margin-bottom: 4px;
+            line-height: 1.4;
+            font-size: 0.85rem;
+        }
+        
+        .driver-tables {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+        }
+        
+        .driver-tables h3 {
+            color: #F9FAFB;
+            margin: 0 0 15px 0;
+            font-size: 1.1rem;
+        }
+        
+        .score-table {
+            width: 100%;
+            background: #374151;
+            border-radius: 8px;
+            overflow: hidden;
+            border-collapse: collapse;
+        }
+        
+        .score-table th {
+            background: #4B5563;
+            color: #F9FAFB;
+            padding: 12px 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-align: left;
+        }
+        
+        .score-table td {
+            padding: 10px 8px;
+            color: #D1D5DB;
+            border-bottom: 1px solid #4B5563;
+            font-size: 0.85rem;
+        }
+        
+        .score-table tbody tr:hover {
+            background: #4B5563;
+        }
+        
+        .score-table .excellent {
+            color: #10B981;
+            font-weight: bold;
+        }
+        
+        .score-table .high-risk {
+            color: #EF4444;
+            font-weight: bold;
+        }
+        
+        .score-table .good {
+            color: #22C55E;
+            font-weight: bold;
+        }
+        
+        .score-table .average {
+            color: #EAB308;
+            font-weight: bold;
+        }
+        
+        .score-table .poor {
+            color: #F59E0B;
+            font-weight: bold;
+        }
+        
+        .badge {
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .badge.excellent {
+            background: #10B981;
+            color: white;
+        }
+        
+        .badge.good {
+            background: #22C55E;
+            color: white;
+        }
+        
+        .badge.average {
+            background: #EAB308;
+            color: white;
+        }
+        
+        .badge.poor {
+            background: #F59E0B;
+            color: white;
+        }
+        
+        .badge.high-risk {
+            background: #EF4444;
+            color: white;
+        }
+        
+        @media (max-width: 768px) {
+            .driver-tables {
+                grid-template-columns: 1fr;
+            }
+            .kpi-cards {
+                grid-template-columns: 1fr;
+            }
+        }
         .queue-count {
             font-size: 24px;
             fill: #FBBF24; /* Amber 400 */
@@ -212,6 +462,84 @@
                 
                 <!-- Tooltip for component details -->
                 <div id="tooltip" class="component-tooltip" style="display: none;"></div>
+                
+                <!-- Safe Driver Scoring Panel -->
+                <div id="safe-driver-panel" class="safe-driver-panel" style="display: none;">
+                    <div class="panel-header">
+                        <h2>🛡️ Safe Driver Scoring System</h2>
+                        <button id="close-panel" class="close-btn">&times;</button>
+                    </div>
+                    <div class="panel-content">
+                        <div class="scoring-overview">
+                            <div class="kpi-cards">
+                                <div class="kpi-card">
+                                    <div class="kpi-icon">🛡️</div>
+                                    <div class="kpi-value" id="fleet-score">83.2</div>
+                                    <div class="kpi-label">Fleet Safety Score</div>
+                                </div>
+                                <div class="kpi-card alert">
+                                    <div class="kpi-icon">🚨</div>
+                                    <div class="kpi-value" id="high-risk-count">3</div>
+                                    <div class="kpi-label">High Risk Drivers</div>
+                                </div>
+                                <div class="kpi-card">
+                                    <div class="kpi-icon">🧠</div>
+                                    <div class="kpi-value" id="ml-accuracy">94.3%</div>
+                                    <div class="kpi-label">ML Model Accuracy</div>
+                                </div>
+                            </div>
+                            
+                            <div class="description">
+                                <p><strong>Advanced Machine Learning System</strong> using MADlib on Greenplum to analyze real-time telemetry data and predict driver safety. The system combines <strong>supervised learning</strong> with business intelligence to generate actionable safety scores from 0-100.</p>
+                            </div>
+                            
+                            <div class="feature-highlights">
+                                <h3>📊 Key Features:</h3>
+                                <ul>
+                                    <li><strong>🚦 Speed Compliance Analysis</strong> - Traffic violation monitoring (40% weight)</li>
+                                    <li><strong>🏁 G-Force Patterns</strong> - Driving smoothness assessment (25% weight)</li>
+                                    <li><strong>⚡ Harsh Event Detection</strong> - Aggressive behavior tracking (15% weight)</li>
+                                    <li><strong>📱 Distraction Monitoring</strong> - Phone usage analysis (15% weight)</li>
+                                    <li><strong>📊 Consistency Metrics</strong> - Speed variance analysis (5% weight)</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="driver-tables">
+                                <div class="top-performers">
+                                    <h3>🏆 Top Performers</h3>
+                                    <table class="score-table">
+                                        <thead>
+                                            <tr><th>Driver</th><th>Score</th><th>Risk Level</th><th>Speed Compliance</th><th>Accidents</th></tr>
+                                        </thead>
+                                        <tbody id="top-drivers">
+                                            <tr><td>400011</td><td class="excellent">93.89</td><td><span class="badge excellent">EXCELLENT</span></td><td>90.71%</td><td>0</td></tr>
+                                            <tr><td>400017</td><td class="excellent">92.04</td><td><span class="badge excellent">EXCELLENT</span></td><td>90.52%</td><td>0</td></tr>
+                                            <tr><td>400022</td><td class="excellent">91.15</td><td><span class="badge excellent">EXCELLENT</span></td><td>88.43%</td><td>0</td></tr>
+                                            <tr><td>400035</td><td class="good">87.62</td><td><span class="badge good">GOOD</span></td><td>85.90%</td><td>0</td></tr>
+                                            <tr><td>400019</td><td class="good">86.33</td><td><span class="badge good">GOOD</span></td><td>84.17%</td><td>0</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                
+                                <div class="high-risk-drivers">
+                                    <h3>⚠️ High Risk Drivers</h3>
+                                    <table class="score-table">
+                                        <thead>
+                                            <tr><th>Driver</th><th>Score</th><th>Risk Level</th><th>Phone Usage</th><th>Accidents</th></tr>
+                                        </thead>
+                                        <tbody id="risk-drivers">
+                                            <tr><td>400001</td><td class="high-risk">57.83</td><td><span class="badge high-risk">HIGH_RISK</span></td><td>26.25%</td><td>2</td></tr>
+                                            <tr><td>400004</td><td class="poor">61.89</td><td><span class="badge poor">POOR</span></td><td>24.83%</td><td>1</td></tr>
+                                            <tr><td>400008</td><td class="poor">59.42</td><td><span class="badge poor">POOR</span></td><td>28.91%</td><td>1</td></tr>
+                                            <tr><td>400015</td><td class="average">65.77</td><td><span class="badge average">AVERAGE</span></td><td>22.15%</td><td>0</td></tr>
+                                            <tr><td>400026</td><td class="average">63.84</td><td><span class="badge average">AVERAGE</span></td><td>31.72%</td><td>0</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 
                 <div id="score-card-container"></div>
             </div>
@@ -387,7 +715,7 @@
         });
 
         // Add health indicators for components with actuator endpoints
-        const healthComponents = ['generator', 'exchange', 'processor', 'hdfs', 'database', 'logsink', 'events']; // database maps to jdbc, events for vehicle_events queue
+        const healthComponents = ['generator', 'exchange', 'processor', 'hdfs', 'database', 'logsink', 'events', 'greenplum']; // database maps to jdbc, events for vehicle_events queue
         componentGroups.each(function(d) {
             const componentId = d[0];
             if (healthComponents.includes(componentId)) {
@@ -408,28 +736,28 @@
             // Grid background
             group.append("rect")
                 .attr("class", "data-grid-bg")
-                .attr("x", -60)
+                .attr("x", -75)
                 .attr("y", 40)
-                .attr("width", 120)
+                .attr("width", 150)
                 .attr("height", 40)
                 .attr("rx", 4);
             
             // Grid border
             group.append("rect")
                 .attr("class", "data-grid")
-                .attr("x", -60)
+                .attr("x", -75)
                 .attr("y", 40)
-                .attr("width", 120)
+                .attr("width", 150)
                 .attr("height", 40)
                 .attr("rx", 4);
             
             // Grid cells (2x2)
-            const cellWidth = 60;
+            const cellWidth = 75;
             const cellHeight = 20;
             
             gridData.forEach((row, rowIndex) => {
                 row.forEach((cell, colIndex) => {
-                    const x = -60 + (colIndex * cellWidth);
+                    const x = -75 + (colIndex * cellWidth);
                     const y = 40 + (rowIndex * cellHeight);
                     
                     // Cell separator lines
@@ -444,9 +772,9 @@
                     if (rowIndex > 0) {
                         group.append("line")
                             .attr("class", "data-grid")
-                            .attr("x1", -60)
+                            .attr("x1", -75)
                             .attr("y1", y)
-                            .attr("x2", 60)
+                            .attr("x2", 75)
                             .attr("y2", y);
                     }
                     
@@ -547,6 +875,10 @@
                 else if ((d[0] === 'exchange' || d[0] === 'events') && rabbitMQDashboardUrl) {
                     console.log('Opening RabbitMQ management dashboard:', rabbitMQDashboardUrl);
                     window.open(rabbitMQDashboardUrl, '_blank');
+                }
+                // Handle Greenplum - show Safe Driver Scoring panel
+                else if (d[0] === 'greenplum') {
+                    showSafeDriverScoringPanel();
                 } 
                 else {
                     alert(`Click details for ${d[1].label}\n\n${d[1].description}\n\n[Placeholder for detailed view]`);
@@ -616,7 +948,8 @@
             jdbc: true,
             logsink: true,   // Add log sink health tracking  
             exchange: true,  // Add exchange health tracking
-            events: true     // Add events (vehicle_events queue) health tracking
+            events: true,    // Add events (vehicle_events queue) health tracking
+            greenplum: true  // Add Greenplum health tracking
         };
 
         function animatePacket(pathId) {
@@ -795,6 +1128,20 @@
                 
                 if (data.component_health) {
                     componentHealth = data.component_health;
+                    
+                    // Fetch Greenplum health separately
+                    try {
+                        const greenplumResponse = await fetch('/api/greenplum/health');
+                        const greenplumData = await greenplumResponse.json();
+                        if (greenplumData && typeof greenplumData.healthy === 'boolean') {
+                            componentHealth.greenplum = greenplumData.healthy;
+                            console.log('Greenplum health updated:', greenplumData.healthy);
+                        }
+                    } catch (greenplumError) {
+                        console.warn('Failed to fetch Greenplum health:', greenplumError);
+                        componentHealth.greenplum = false;
+                    }
+                    
                     updateHealthIndicators();
                     console.log('Component health updated:', componentHealth);
                 }
@@ -1373,6 +1720,37 @@
         
         // Fetch telemetry generator metrics every 5 seconds
         setInterval(fetchTelemetryMetrics, 5000);
+        
+        // --- Safe Driver Scoring Panel Functions ---
+        function showSafeDriverScoringPanel() {
+            document.getElementById('safe-driver-panel').style.display = 'block';
+            // TODO: Fetch real data from Greenplum API endpoints
+            console.log('Safe Driver Scoring panel opened');
+        }
+        
+        function hideSafeDriverScoringPanel() {
+            document.getElementById('safe-driver-panel').style.display = 'none';
+        }
+        
+        // Close panel when clicking the X button
+        document.addEventListener('DOMContentLoaded', function() {
+            const closeBtn = document.getElementById('close-panel');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', hideSafeDriverScoringPanel);
+            }
+            
+            // Close panel when clicking outside of it
+            document.addEventListener('click', function(event) {
+                const panel = document.getElementById('safe-driver-panel');
+                if (panel && panel.style.display === 'block' && !panel.contains(event.target)) {
+                    // Only close if clicking outside and not on the Greenplum component
+                    const greenplumComponent = event.target.closest('.component');
+                    if (!greenplumComponent || !greenplumComponent.textContent.includes('Greenplum')) {
+                        hideSafeDriverScoringPanel();
+                    }
+                }
+            });
+        });
         
         // Fetch exchange queue metrics every 6 seconds  
         setInterval(fetchExchangeQueueMetrics, 6000);
