@@ -6,6 +6,7 @@ CLAUDE.md
 # Configuration files (templates are tracked, actual files are ignored)
 src/main/resources/application.yml
 src/main/resources/application-cloud.yml
+config.env
 
 # Maven
 target/

@@ -13,7 +13,7 @@
 
     <groupId>com.insurancemegacorp</groupId>
     <artifactId>imc-smartdriver-ui</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.1</version>
     <packaging>jar</packaging>
     
     <name>IMC Smart Driver Monitoring UI</name>
@@ -48,25 +48,23 @@
         </dependency>
         -->
 
-        <!-- Database dependency commented out for Phase 1
+        <!-- Database dependency for Greenplum connectivity -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jdbc</artifactId>
         </dependency>
-        -->
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
-        <!-- Database drivers commented out for Phase 1
+        <!-- Database drivers for Greenplum (PostgreSQL compatible) -->
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
-        -->
 
         <!-- Hadoop client for HDFS integration -->
         <dependency>

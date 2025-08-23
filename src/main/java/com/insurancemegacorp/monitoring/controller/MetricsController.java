@@ -337,6 +337,12 @@ public class MetricsController {
         return ResponseEntity.ok(health);
     }
     
+    @GetMapping("/greenplum/stats")
+    public ResponseEntity<Map<String, Object>> getGreenplumStats() {
+        Map<String, Object> stats = greenplumService.getDatabaseStats();
+        return ResponseEntity.ok(stats);
+    }
+    
     @GetMapping("/safe-driver-scoring/fleet-summary")
     public ResponseEntity<Map<String, Object>> getFleetSafetySummary() {
         Map<String, Object> summary = greenplumService.getFleetSafetySummary();
@@ -353,5 +359,23 @@ public class MetricsController {
     public ResponseEntity<List<Map<String, Object>>> getHighRiskDrivers() {
         List<Map<String, Object>> drivers = greenplumService.getHighRiskDrivers();
         return ResponseEntity.ok(drivers);
+    }
+    
+    @PostMapping("/safe-driver-scoring/recalculate")
+    public ResponseEntity<Map<String, Object>> recalculateSafeDriverScores() {
+        Map<String, Object> result = greenplumService.recalculateSafeDriverScores();
+        return ResponseEntity.ok(result);
+    }
+    
+    @GetMapping("/safe-driver-scoring/ml-model-info")
+    public ResponseEntity<Map<String, Object>> getMLModelInfo() {
+        Map<String, Object> modelInfo = greenplumService.getMLModelInfo();
+        return ResponseEntity.ok(modelInfo);
+    }
+    
+    @GetMapping("/debug/greenplum-config")
+    public ResponseEntity<Map<String, Object>> getGreenplumConfig() {
+        Map<String, Object> config = greenplumService.getDebugConfiguration();
+        return ResponseEntity.ok(config);
     }
 }
